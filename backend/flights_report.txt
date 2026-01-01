@@ -1,0 +1,134 @@
+Seed successful
+
+Found 100 flights:
+Flight ID  | Route                          | Date (Dep)           | Airline         | Status
+----------------------------------------------------------------------------------------------------
+FLY1001    | Guwahati to Pune               | 2025-12-31 03:00     | IndiGo          | SCHEDULED
+FLY1002    | Bangalore to Ahmedabad         | 00:19                | Vistara         | SCHEDULED
+FLY1003    | Hyderabad to Ahmedabad         | 16:45                | IndiGo          | SCHEDULED
+FLY1004    | Ahmedabad to Hyderabad         | 02:18                | IndiGo          | SCHEDULED
+FLY1005    | Delhi to Goa                   | 22:30                | IndiGo          | SCHEDULED
+FLY1006    | Mumbai to Goa                  | 01:50                | Air India       | SCHEDULED
+FLY1007    | Kolkata to Pune                | 21:14                | Air India       | SCHEDULED
+FLY1008    | Hyderabad to Kolkata           | 16:42                | Vistara         | SCHEDULED
+FLY1009    | Pune to Delhi                  | 16:47                | IndiGo          | SCHEDULED
+FLY1010    | Goa to Chennai                 | 00:20                | SpiceJet        | SCHEDULED
+
+[VERIFICATION] FLY1010 Full Dump: {
+  "_id": "69564587cd4cba575bf79d0b",
+  "Flight_ID": "FLY1010",
+  "Origin": "DEL",
+  "Destination": "BOM",
+  "Route": "Goa to Chennai",
+  "Departure_Time": "00:20",
+  "Arrival_Time": "02:47",
+  "Departure": "2026-01-02T00:20:35.602848",
+  "Arrival": "2026-01-02T02:47:35.602848",
+  "Aircraft_Type": "B737",
+  "Flight_Duration": "2h 27m",
+  "Pilot_ID": "PLT5544",
+  "Name": "Captain_4",
+  "Rank": "Captain",
+  "Certification": "B737",
+  "Age": 43,
+  "Experience_Years": "21",
+  "Rest_Hours": "23",
+  "Fatigue_Score": 4,
+  "Last_Flight_Time": "2025-12-30 09:45",
+  "Sys_Status": "SCHEDULED",
+  "Airline": "SpiceJet",
+  "Disruption_Type": null,
+  "Delay_Minutes": 0,
+  "Recovery_Action": null,
+  "Weather_Conditions": null
+}
+FLY1011    | Bangalore to Ahmedabad         | 02:05                | SpiceJet        | SCHEDULED
+FLY1012    | Guwahati to Chennai            | 02:28                | Vistara         | SCHEDULED
+FLY1013    | Hyderabad to Ahmedabad         | 03:00                | Vistara         | SCHEDULED
+FLY1014    | Mumbai to Hyderabad            | 16:30                | Vistara         | SCHEDULED
+FLY1015    | Mumbai to Chennai              | 17:11                | IndiGo          | SCHEDULED
+FLY1016    | Ahmedabad to Guwahati          | 16:28                | AirAsia India   | SCHEDULED
+FLY1017    | Guwahati to Pune               | 17:11                | Vistara         | SCHEDULED
+FLY1018    | Bangalore to Hyderabad         | 21:22                | Air India       | SCHEDULED
+FLY1019    | Bangalore to Chennai           | 02:14                | Go First        | SCHEDULED
+FLY1020    | Delhi to Goa                   | 20:17                | Go First        | SCHEDULED
+FLY1021    | Kolkata to Chennai             | 23:35                | Air India       | SCHEDULED
+FLY1022    | Kolkata to Bangalore           | 20:22                | Go First        | SCHEDULED
+FLY1023    | Chennai to Mumbai              | 23:09                | IndiGo          | SCHEDULED
+FLY1024    | Guwahati to Chennai            | 02:41                | IndiGo          | SCHEDULED
+FLY1025    | Chennai to Pune                | 21:49                | Air India       | SCHEDULED
+FLY1026    | Pune to Delhi                  | 00:57                | SpiceJet        | SCHEDULED
+FLY1027    | Chennai to Hyderabad           | 23:54                | Vistara         | SCHEDULED
+FLY1028    | Bangalore to Mumbai            | 21:15                | Vistara         | SCHEDULED
+FLY1029    | Mumbai to Chennai              | 22:17                | Vistara         | SCHEDULED
+FLY1030    | Goa to Kolkata                 | 00:37                | Go First        | SCHEDULED
+FLY1031    | Goa to Mumbai                  | 17:40                | Go First        | SCHEDULED
+FLY1032    | Delhi to Kolkata               | 19:43                | Go First        | SCHEDULED
+FLY1033    | Ahmedabad to Guwahati          | 01:03                | IndiGo          | SCHEDULED
+FLY1034    | Ahmedabad to Pune              | 17:31                | Vistara         | SCHEDULED
+FLY1035    | Pune to Kolkata                | 19:37                | Go First        | SCHEDULED
+FLY1036    | Hyderabad to Kolkata           | 03:28                | SpiceJet        | SCHEDULED
+FLY1037    | Ahmedabad to Guwahati          | 18:59                | Vistara         | SCHEDULED
+FLY1038    | Chennai to Hyderabad           | 21:01                | Go First        | SCHEDULED
+FLY1039    | Bangalore to Delhi             | 03:10                | Go First        | SCHEDULED
+FLY1040    | Ahmedabad to Mumbai            | 22:50                | Go First        | SCHEDULED
+FLY1041    | Goa to Delhi                   | 23:48                | IndiGo          | SCHEDULED
+FLY1042    | Goa to Delhi                   | 03:12                | IndiGo          | SCHEDULED
+FLY1043    | Delhi to Ahmedabad             | 20:09                | IndiGo          | SCHEDULED
+FLY1044    | Hyderabad to Bangalore         | 16:55                | Go First        | SCHEDULED
+FLY1045    | Kolkata to Bangalore           | 20:08                | Go First        | SCHEDULED
+FLY1046    | Pune to Kolkata                | 23:49                | IndiGo          | SCHEDULED
+FLY1047    | Chennai to Ahmedabad           | 01:19                | SpiceJet        | SCHEDULED
+FLY1048    | Guwahati to Chennai            | 18:46                | Go First        | SCHEDULED
+FLY1049    | Delhi to Kolkata               | 18:41                | IndiGo          | SCHEDULED
+FLY1050    | Hyderabad to Ahmedabad         | 03:09                | IndiGo          | SCHEDULED
+FLY1051    | Goa to Bangalore               | 02:51                | Go First        | SCHEDULED
+FLY1052    | Guwahati to Kolkata            | 22:05                | SpiceJet        | SCHEDULED
+FLY1053    | Kolkata to Goa                 | 17:53                | AirAsia India   | SCHEDULED
+FLY1054    | Guwahati to Ahmedabad          | 17:38                | IndiGo          | SCHEDULED
+FLY1055    | Bangalore to Ahmedabad         | 19:29                | AirAsia India   | SCHEDULED
+FLY1056    | Pune to Mumbai                 | 23:23                | IndiGo          | SCHEDULED
+FLY1057    | Pune to Kolkata                | 01:15                | Go First        | SCHEDULED
+FLY1058    | Goa to Ahmedabad               | 19:33                | IndiGo          | SCHEDULED
+FLY1059    | Ahmedabad to Goa               | 00:37                | IndiGo          | SCHEDULED
+FLY1060    | Guwahati to Goa                | 21:21                | Go First        | SCHEDULED
+FLY1061    | Mumbai to Hyderabad            | 00:37                | Go First        | SCHEDULED
+FLY1062    | Guwahati to Kolkata            | 18:29                | Go First        | SCHEDULED
+FLY1063    | Kolkata to Bangalore           | 22:41                | SpiceJet        | SCHEDULED
+FLY1064    | Kolkata to Hyderabad           | 00:03                | Go First        | SCHEDULED
+FLY1065    | Ahmedabad to Kolkata           | 02:17                | Go First        | SCHEDULED
+FLY1066    | Hyderabad to Chennai           | 02:22                | SpiceJet        | SCHEDULED
+FLY1067    | Ahmedabad to Bangalore         | 23:27                | IndiGo          | SCHEDULED
+FLY1068    | Mumbai to Pune                 | 22:31                | Go First        | SCHEDULED
+FLY1069    | Mumbai to Hyderabad            | 23:50                | Go First        | SCHEDULED
+FLY1070    | Goa to Delhi                   | 23:27                | IndiGo          | SCHEDULED
+FLY1071    | Kolkata to Hyderabad           | 22:22                | Go First        | SCHEDULED
+FLY1072    | Hyderabad to Bangalore         | 18:01                | Go First        | SCHEDULED
+FLY1073    | Goa to Pune                    | 20:03                | Vistara         | SCHEDULED
+FLY1074    | Guwahati to Delhi              | 03:29                | Vistara         | SCHEDULED
+FLY1075    | Guwahati to Pune               | 00:57                | Vistara         | SCHEDULED
+FLY1076    | Pune to Guwahati               | 23:53                | IndiGo          | SCHEDULED
+FLY1077    | Delhi to Guwahati              | 00:45                | IndiGo          | SCHEDULED
+FLY1078    | Bangalore to Chennai           | 18:04                | Air India       | SCHEDULED
+FLY1079    | Goa to Kolkata                 | 18:52                | Air India       | SCHEDULED
+FLY1080    | Kolkata to Guwahati            | 23:20                | Go First        | SCHEDULED
+FLY1081    | Bangalore to Delhi             | 21:28                | Go First        | SCHEDULED
+FLY1082    | Bangalore to Mumbai            | 22:35                | Go First        | SCHEDULED
+FLY1083    | Kolkata to Mumbai              | 21:21                | Vistara         | SCHEDULED
+FLY1084    | Mumbai to Chennai              | 21:39                | Vistara         | SCHEDULED
+FLY1085    | Hyderabad to Delhi             | 16:47                | IndiGo          | SCHEDULED
+FLY1086    | Ahmedabad to Chennai           | 00:43                | IndiGo          | SCHEDULED
+FLY1087    | Mumbai to Kolkata              | 20:37                | IndiGo          | SCHEDULED
+FLY1088    | Pune to Hyderabad              | 18:47                | SpiceJet        | SCHEDULED
+FLY1089    | Goa to Bangalore               | 20:41                | SpiceJet        | SCHEDULED
+FLY1090    | Mumbai to Ahmedabad            | 21:01                | Vistara         | SCHEDULED
+FLY1091    | Guwahati to Pune               | 00:53                | Vistara         | SCHEDULED
+FLY1092    | Mumbai to Delhi                | 23:27                | Vistara         | SCHEDULED
+FLY1093    | Bangalore to Goa               | 19:03                | AirAsia India   | SCHEDULED
+FLY1094    | Ahmedabad to Chennai           | 20:50                | AirAsia India   | SCHEDULED
+FLY1095    | Kolkata to Ahmedabad           | 02:08                | Air India       | SCHEDULED
+FLY1096    | Ahmedabad to Pune              | 21:11                | IndiGo          | SCHEDULED
+FLY1097    | Delhi to Mumbai                | 21:59                | IndiGo          | SCHEDULED
+FLY1098    | Ahmedabad to Kolkata           | 00:38                | Air India       | SCHEDULED
+FLY1099    | Delhi to Bangalore             | 21:57                | SpiceJet        | SCHEDULED
+FLY1100    | Kolkata to Goa                 | 22:50                | Vistara         | SCHEDULED

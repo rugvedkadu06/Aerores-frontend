@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-bg-void text-gray-300 font-sans antialiased overflow-hidden;
+  /* Prevent scrolling on body, Main layout handles it */
+  background: radial-gradient(circle at top center, #1b1e2b 0%, #000000 100%);
+  min-height: 100vh;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-surface-border rounded-full hover:bg-gray-700 transition-colors;
+}
