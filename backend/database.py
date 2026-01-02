@@ -10,8 +10,8 @@ DB_NAME = os.getenv("DB_NAME", "aero_resilience")
 client = AsyncIOMotorClient(MONGO_URI)
 db = client[DB_NAME]
 
-async def get_pilots():
-    return await db.pilots.find().to_list(length=1000)
+async def get_pilots(limit=1000):
+    return await db.pilots.find().to_list(length=limit)
 
 async def get_flights():
     return await db.flights.find().to_list(length=1000)

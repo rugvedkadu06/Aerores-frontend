@@ -1,0 +1,35 @@
+
+import React from 'react';
+
+const Timeline = ({ events, language = 'en' }) => {
+    const translations = {
+        en: { scheduled: "Scheduled", delayed: "Delayed", cancelled: "Cancelled", updated: "Updated" },
+        hi: { scheduled: "निर्धारित", delayed: "विलंबित", cancelled: "रद्द", updated: "अद्यतन" },
+        ta: { scheduled: "திட்டமிடப்பட்டது", delayed: "தாமதமானது", cancelled: "ரத்து செய்யப்பட்டது", updated: "புதுப்பிக்கப்பட்டது" },
+        bn: { scheduled: "নির্ধারিত", delayed: "বিলম্বিত", cancelled: "বাতিল", updated: "আপডেট" }
+    };
+
+    const t = translations[language] || translations.en;
+
+    return (
+        <div className="relative border-l-2 border-dashed border-gray-600 ml-4 my-6">
+            {events.map((event, index) => (
+                <div key={index} className="mb-8 ml-6 relative">
+                    <span className={`absolute -left-[31px] flex items-center justify-center w-6 h-6 rounded-full ring-4 ring-bg-void ${event.status === 'CRITICAL' ? 'bg-red-500' :
+                            event.status === 'DONE' ? 'bg-green-500' : 'bg-gray-500'
+                        }`}>
+                    </span>
+                    <div className="bg-surface/50 p-4 rounded-lg border border-surface-border">
+                        <div className="flex justify-between items-start mb-1">
+                            <h3 className="text-sm font-bold text-white">{event.title}</h3>
+                            <span className="text-xs font-mono text-gray-400">{event.time}</span>
+                        </div>
+                        <p className="text-xs text-gray-300">{event.description}</p>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+export default Timeline;

@@ -1,22 +1,29 @@
+
 import React from 'react';
 
 const FatigueGauge = ({ value, label, subLabel }) => {
-    // value: 0-100
+    // value might be 0.0 - 1.0 (backend) or 0-100
+    // Normalize to 0-100
+    let normalizedValue = value;
+    if (value <= 1.0) normalizedValue = value * 100;
+
+    normalizedValue = Math.round(normalizedValue);
+
     const size = 120;
     const strokeWidth = 8;
     const center = size / 2;
     const radius = size / 2 - strokeWidth * 2;
     const circumference = 2 * Math.PI * radius;
-    const offset = circumference - (value / 100) * circumference;
+    const offset = circumference - (normalizedValue / 100) * circumference;
 
     let colorClass = 'text-status-success stroke-status-success';
     let glowClass = 'drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]'; // Green glow
 
-    if (value > 60) {
+    if (normalizedValue > 60) {
         colorClass = 'text-status-warning stroke-status-warning';
         glowClass = 'drop-shadow-[0_0_8px_rgba(247,197,173,0.5)]'; // Amber glow
     }
-    if (value > 80) {
+    if (normalizedValue > 80) {
         colorClass = 'text-status-danger stroke-status-danger';
         glowClass = 'drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]'; // Red glow
     }
@@ -53,7 +60,7 @@ const FatigueGauge = ({ value, label, subLabel }) => {
                 {/* Center Text */}
                 <div className="absolute flex flex-col items-center">
                     <span className={`text-2xl font-bold ${colorClass.split(' ')[0]}`}>
-                        {value}%
+                        {normalizedValue}%
                     </span>
                     <span className="text-[10px] text-gray-500 uppercase tracking-widest">RISK</span>
                 </div>
