@@ -13,8 +13,10 @@ from email.mime.multipart import MIMEMultipart
 
 from database import db
 from models import Pilot, Flight, Disruption, CostModel, SimulationRequest, HealRequest, CrewRestRequest, CrewCostRequest
+from passenger_api import router as passenger_router
 
 app = FastAPI()
+app.include_router(passenger_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,8 +32,8 @@ LATEST_AGENT_LOGS = []
 
 def send_delay_email(flight_number, origin, dest, delay_minutes, reason):
     # Credentials (preserved)
-    sender_email = "devrugved@rugveddev.tech" 
-    sender_password = "rugved@281" 
+    sender_email = "demorgvd2@gmail.com" 
+    sender_password = "viop xdcq nazc hsjv" 
     receiver_email = "kadurugved0@gmail.com"
     
     if "YOUR_OUTLOOK" in sender_email:
@@ -57,7 +59,7 @@ def send_delay_email(flight_number, origin, dest, delay_minutes, reason):
     msg.attach(MIMEText(body, 'html'))
     
     try:
-        server = smtplib.SMTP_SSL('smtp.titan.email', 465)
+        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         server.login(sender_email, sender_password)
         text = msg.as_string()
         server.sendmail(sender_email, receiver_email, text)
