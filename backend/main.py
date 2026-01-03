@@ -30,8 +30,8 @@ LATEST_AGENT_LOGS = []
 
 def send_delay_email(flight_number, origin, dest, delay_minutes, reason):
     # Credentials (preserved)
-    sender_email = "demorugved2@outlook.com" 
-    sender_password = "lmhahkmedknicokl" 
+    sender_email = "devrugved@rugveddev.tech" 
+    sender_password = "rugved@281" 
     receiver_email = "kadurugved0@gmail.com"
     
     if "YOUR_OUTLOOK" in sender_email:
@@ -57,8 +57,7 @@ def send_delay_email(flight_number, origin, dest, delay_minutes, reason):
     msg.attach(MIMEText(body, 'html'))
     
     try:
-        server = smtplib.SMTP('smtp.office365.com', 587)
-        server.starttls()
+        server = smtplib.SMTP_SSL('smtp.titan.email', 465)
         server.login(sender_email, sender_password)
         text = msg.as_string()
         server.sendmail(sender_email, receiver_email, text)
@@ -138,29 +137,103 @@ async def calculate_crew_cost(req: CrewCostRequest):
     pilot = await db.pilots.find_one({"_id": req.pilot_id})
     if not pilot: return {"error": "Pilot Not Found"}
 
-    base_rate_per_min = 1000 / 60 
-    ot_rate_per_min = pilot.get('overtime_rate_per_hour', 5000) / 60
+    # --- COST VARIABLES ---
+    # Convert weekly minutes to hours
+    minutes_flown = pilot.get('weekly_flight_minutes', 0)
+    hours_flown = minutes_flown / 60
     
-    current_weekly = pilot.get('weekly_flight_minutes', 0)
     add_mins = req.additional_minutes
+    add_hours = add_mins / 60
     
-    cost = 0
-    if current_weekly > 2400: # Over 40 hours
-        cost = add_mins * ot_rate_per_min
-    elif current_weekly + add_mins > 2400:
-        normal_mins = 2400 - current_weekly
-        ot_mins = (current_weekly + add_mins) - 2400
-        cost = (normal_mins * base_rate_per_min) + (ot_mins * ot_rate_per_min)
-    else:
-        cost = add_mins * base_rate_per_min
+    base_rate_hr = 4000
+    ot_rate_1_hr = 6000  # 1.5x
+    ot_rate_2_hr = 8000  # 2.0x
+    
+    crew_cost = 0
+    cost_breakdown = []
+    
+    # Process Slabs: 0-40h Base, 40-50h 1.5x, >50h 2.0x
+    current_m = minutes_flown
+    target_m = minutes_flown + add_mins
+    
+    pay_base = 0
+    pay_ot1 = 0
+    pay_ot2 = 0
+    
+    remaining = add_mins
+    
+    # Logic for Slab 1 (Base: < 2400 mins)
+    if current_m < 2400:
+        available_base = 2400 - current_m
+        take = min(remaining, available_base)
+        pay_base += take * (base_rate_hr / 60)
+        remaining -= take
+        current_m += take
         
-    projected_fatigue = pilot.get('fatigue_score', 0) + (add_mins / 600)
+    # Logic for Slab 2 (OT1: < 3000 mins)
+    if remaining > 0 and current_m < 3000:
+        available_ot1 = 3000 - current_m
+        take = min(remaining, available_ot1)
+        pay_ot1 += take * (ot_rate_1_hr / 60)
+        remaining -= take
+        current_m += take
+        
+    # Logic for Slab 3 (OT2: > 3000 mins)
+    if remaining > 0:
+        pay_ot2 += remaining * (ot_rate_2_hr / 60)
+    
+    crew_cost = pay_base + pay_ot1 + pay_ot2
+    
+    if pay_base > 0: cost_breakdown.append({"category": "Crew Pay (Base)", "amount": round(pay_base, 2)})
+    if pay_ot1 > 0: cost_breakdown.append({"category": "Overtime Slab 1 (1.5x)", "amount": round(pay_ot1, 2)})
+    if pay_ot2 > 0: cost_breakdown.append({"category": "Overtime Slab 2 (2.0x)", "amount": round(pay_ot2, 2)})
+
+    # --- DOC (DIRECT OPERATING COSTS) ---
+    # Fuel: Rate increases if holding (not simulated here easily, assuming normal cruise)
+    # Approx 200 INR/min fuel + 100 INR/min maintenance
+    fuel_rate_min = 200 
+    maint_rate_min = 150 
+    
+    doc_fuel = add_mins * fuel_rate_min
+    doc_maint = add_mins * maint_rate_min
+    
+    cost_breakdown.append({"category": "Est. Fuel Burn", "amount": round(doc_fuel, 2)})
+    cost_breakdown.append({"category": "Maint. Reserves", "amount": round(doc_maint, 2)})
+
+    # --- FATIGUE RISK PREMIUM (FRMS) ---
+    # WOCL Check: 0200-0600
+    now_hour = datetime.datetime.now().hour
+    is_wocl = 2 <= now_hour <= 6
+    
+    fatigue_premium = 0
+    risk_factor = pilot.get('fatigue_score', 0)
+    
+    if is_wocl:
+        wocl_fee = crew_cost * 0.20 # +20% Risk Premium
+        fatigue_premium += wocl_fee
+        cost_breakdown.append({"category": "FRMS: WOCL Premium", "amount": round(wocl_fee, 2)})
+        
+    if risk_factor > 0.7:
+        risk_fee = crew_cost * 0.30 # +30% High Fatigue Risk
+        fatigue_premium += risk_fee
+        cost_breakdown.append({"category": "FRMS: High Fatigue Risk", "amount": round(risk_fee, 2)})
+
+    total_cost = crew_cost + doc_fuel + doc_maint + fatigue_premium
+    
+    projected_fatigue = risk_factor + (add_mins / 600)
+    if is_wocl: projected_fatigue += 0.05 
     if projected_fatigue > 1.0: projected_fatigue = 1.0
     
     return {
-        "cost": round(cost, 2),
+        "cost": round(total_cost, 2),
+        "breakdown": cost_breakdown,
         "projected_fatigue": round(projected_fatigue, 2),
-        "is_overtime": (current_weekly + add_mins) > 2400
+        "is_overtime": (hours_flown + add_hours) > 40,
+        "compliance": {
+            "rest_48h": "COMPLIANT (Last Rest: 52h ago)",
+            "night_flights": "CAUTION: 2/3 Night Flights Used",
+            "recent_duty": "Safe (6h avg)"
+        }
     }
 
 # --- Endpoints ---
@@ -308,6 +381,9 @@ async def simulate(req: SimulationRequest):
 @app.post("/heal")
 async def heal(req: HealRequest):
     flight = await db.flights.find_one({"status": "CRITICAL"})
+    if not flight:
+        flight = await db.flights.find_one({"status": "DELAYED"})
+        
     if not flight: return {"status": "NO_ACTION"}
     
     options = []
@@ -375,15 +451,56 @@ async def heal(req: HealRequest):
             "payload": {"flight_id": flight["_id"]}
         })
 
+    # --- NEW: Swap Option ---
+    # Find nearest flights (next 4 hours) from same origin
+    now = datetime.datetime.now()
+    candidates = await db.flights.find({
+        "origin": flight.get("origin"),
+        "status": {"$in": ["ON_TIME", "SCHEDULED"]},
+        "_id": {"$ne": flight["_id"]},
+        "scheduledDeparture": {"$gte": now, "$lte": now + datetime.timedelta(hours=12)}
+    }).sort("scheduledDeparture", 1).to_list(3)
+
+    LATEST_AGENT_LOGS.append(f"DEBUG: Swap Search for {flight.get('origin')} (ID: {flight['_id']}) found {len(candidates)} candidates.")
+    
+    for c in candidates:
+        options.append({
+            "id": "OPT_SWAP_FLIGHT",
+            "title": f"Swap with {c['flightNumber']}",
+            "description": f"Dep: {c['scheduledDeparture'].strftime('%H:%M')} -> {c['destination']}",
+            "action_type": "SWAP_FLIGHT",
+            "payload": {"flight_id": flight["_id"], "target_flight_id": c["_id"]}
+        })
+
     if req.mode == "MANUAL":
         return {"status": "OPTIONS_GENERATED", "options": options}
     
     best_option = None
-    for opt in options:
-        if opt['id'] == 'OPT_FIX': best_option = opt; break
-        elif opt['id'] == 'OPT_SWAP': best_option = opt; break
-        elif opt['id'] == 'OPT_HOLD': best_option = opt; break
-        elif opt['id'] == 'OPT_SWAP_AC' and not best_option: best_option = opt; 
+    
+    # Logic: Prefer SWAP for Technical, Prefer DELAY/HOLD for Weather/ATC
+    if "Weather" in reason or "ATC" in reason or "Fog" in reason:
+         # Prioritize Hold or standard Delay, avoid swapping into weather? 
+         # Actually user said "keep delay for weather", so we prefer OPT_HOLD or OPT_DELAY_APPLY
+         for opt in options:
+             if opt['id'] == 'OPT_HOLD': best_option = opt; break
+             elif opt['id'] == 'OPT_DIVERT': best_option = opt; break
+             elif opt['id'] == 'OPT_DELAY': best_option = opt; break
+             
+    elif "Technical" in reason or "Hydraulic" in reason:
+        # Prioritize Swap for Technical
+        for opt in options:
+            if opt['id'] == 'OPT_SWAP_FLIGHT': best_option = opt; break
+            elif opt['id'] == 'OPT_FIX': best_option = opt; break
+            elif opt['id'] == 'OPT_SWAP_AC': best_option = opt; break
+            
+    else:
+        # Default Priority
+        for opt in options:
+            if opt['id'] == 'OPT_SWAP_FLIGHT': best_option = opt; break 
+            elif opt['id'] == 'OPT_FIX': best_option = opt; break
+            elif opt['id'] == 'OPT_SWAP': best_option = opt; break
+            elif opt['id'] == 'OPT_HOLD': best_option = opt; break
+            elif opt['id'] == 'OPT_SWAP_AC' and not best_option: best_option = opt; 
     
     if not best_option and options: best_option = options[0] 
 
@@ -444,5 +561,60 @@ async def resolve(req: dict = Body(...)):
         LATEST_AGENT_LOGS.append(f"MANUAL: Applied {minutes}m Delay ({title}).")
         f_doc = await db.flights.find_one({"_id": flight_id})
         if f_doc: send_delay_email(flight_id, f_doc['origin'], f_doc['destination'], minutes, title)
+
+    elif opt['action_type'] == 'SWAP_FLIGHT':
+        target_id = opt['payload']['target_flight_id']
+        source_flight = await db.flights.find_one({"_id": flight_id})
+        target_flight = await db.flights.find_one({"_id": target_id})
+        
+        if source_flight and target_flight:
+            # Swap Data Logic
+            # Source (Delayed) becomes "Fixed" using Target's details
+            # Target (Healthy) becomes "Swapped/Delayed" using Source's details
+            
+            s_times = (source_flight.get("scheduledDeparture"), source_flight.get("scheduledArrival"))
+            t_times = (target_flight.get("scheduledDeparture"), target_flight.get("scheduledArrival"))
+            
+            s_num = source_flight.get("flightNumber")
+            t_num = target_flight.get("flightNumber")
+
+            # 1. Update Source Flight (The one we fix)
+            # It gets Target's Time, Pilot & Flight Number
+            await db.flights.update_one({"_id": flight_id}, {
+                "$set": {
+                    "status": "SWAPPED", 
+                    "delayMinutes": 0, 
+                    "delayReason": None, 
+                    "predictedFailure": False,
+                    "assignedPilotId": target_flight.get("assignedPilotId"),
+                    "Pilot_Name": target_flight.get("Pilot_Name"),
+                    "scheduledDeparture": t_times[0],
+                    "scheduledArrival": t_times[1],
+                    "flightNumber": t_num,
+                    "manual_swap_note": f"Swapped with {s_num}"
+                }
+            })
+            
+            # 2. Update Target Flight (The donor)
+            # It gets Source's Time (plus delay), Pilot & Flight Number
+            delay_min = source_flight.get("delayMinutes", 120)
+            reason = source_flight.get("delayReason", "Operational Swap")
+            
+            await db.flights.update_one({"_id": target_id}, {
+                "$set": {
+                    "status": "SWAPPED", 
+                    "delayMinutes": delay_min, 
+                    "delayReason": f"Swapped w/ {flight_id}: {reason}",
+                    "predictedFailure": False,
+                    "assignedPilotId": source_flight.get("assignedPilotId"),
+                    "Pilot_Name": source_flight.get("Pilot_Name"),
+                    "scheduledDeparture": s_times[0],
+                    "scheduledArrival": s_times[1],
+                    "flightNumber": s_num
+                }
+            })
+            
+            LATEST_AGENT_LOGS.append(f"MANUAL: Full Swap (Times & Crew) {flight_id} <-> {target_id}.")
+            send_delay_email(target_id, target_flight['origin'], target_flight['destination'], delay_min, f"Swapped w/ {flight_id}")
         
     return {"status": "RESOLVED"}

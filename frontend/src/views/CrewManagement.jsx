@@ -1,37 +1,50 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 
-const CrewManagement = () => {
-    const [pilots, setPilots] = useState([]);
+const CrewManagement = ({ pilots = [], onRefresh }) => {
     const [selectedPilot, setSelectedPilot] = useState(null);
     const [modifyMinutes, setModifyMinutes] = useState(60);
     const [costData, setCostData] = useState(null);
-
-    useEffect(() => {
-        fetchPilots();
-    }, []);
-
-    const fetchPilots = async () => {
-        try {
-            const res = await axios.get('http://127.0.0.1:8000/data');
-            setPilots(res.data.pilot_readiness || []);
-        } catch (err) {
-            console.error(err);
-        }
-    };
 
     const handleAllocateRest = async (pilotId) => {
         if (!confirm("Grant 24h Rest? This will reset all fatigue stats.")) return;
         try {
             await axios.post('http://127.0.0.1:8000/crew/update_rest', { pilot_id: pilotId });
             alert("Rest Allocated Successfully");
-            fetchPilots();
+            if (handleRefresh) handleRefresh();
             setSelectedPilot(null);
         } catch (err) {
             alert("Failed to allocate rest");
         }
     };
+
+    // Local state for standalone mode
+    const [localPilots, setLocalPilots] = useState([]);
+
+    // Determine effective data source
+    const effectivePilots = pilots.length > 0 ? pilots : localPilots;
+
+    // Fetch data if standalone (no props provided)
+    React.useEffect(() => {
+        if (pilots.length === 0) {
+            fetchData();
+        }
+    }, [pilots]);
+
+    const fetchData = async () => {
+        try {
+            const res = await axios.get('http://127.0.0.1:8000/data?page=1&limit=50');
+            if (res.data.pilot_readiness) {
+                setLocalPilots(res.data.pilot_readiness);
+            }
+        } catch (err) {
+            console.error("Failed to fetch crew data", err);
+        }
+    };
+
+    // Use internal refresh if no prop provided
+    const handleRefresh = onRefresh || fetchData;
 
     const calculateCost = async () => {
         if (!selectedPilot) return;
@@ -47,7 +60,7 @@ const CrewManagement = () => {
     };
 
     return (
-        <div className="p-6 h-screen flex gap-6 overflow-hidden">
+        <div className="h-full flex gap-6 overflow-hidden">
             {/* LEFT: ROSTER LIST */}
             <div className="w-2/3 bg-black/40 border border-surface-border rounded-lg overflow-hidden flex flex-col backdrop-blur-sm">
                 <div className="p-4 border-b border-surface-border bg-surface/50">
@@ -66,7 +79,7 @@ const CrewManagement = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {pilots.map(p => {
+                            {effectivePilots.map(p => {
                                 const weeklyHours = (p.weekly_flight_minutes / 60).toFixed(1);
                                 const isOvertime = p.weekly_flight_minutes > 2400; // >40h
 
@@ -110,17 +123,17 @@ const CrewManagement = () => {
             </div>
 
             {/* RIGHT: ACTION PANEL */}
-            <div className="w-1/3 flex flex-col gap-6">
+            <div className="w-1/3 flex flex-col gap-4 overflow-hidden">
 
                 {/* HEADLINE PANEL */}
-                <div className="bg-black/40 border border-surface-border rounded-lg p-6 backdrop-blur-sm">
-                    <h3 className="text-lg font-bold text-gray-200 mb-2">Crew Operations</h3>
-                    <p className="text-sm text-gray-400">Select a pilot from the roster to manage schedule, allocate rest, or calculate overtime impact.</p>
+                <div className="bg-black/40 border border-surface-border rounded-lg p-4 backdrop-blur-sm shrink-0">
+                    <h3 className="text-lg font-bold text-gray-200 mb-1">Crew Operations</h3>
+                    <p className="text-xs text-gray-400">Select a pilot from the roster to manage schedule.</p>
                 </div>
 
                 {selectedPilot ? (
-                    <div className="bg-surface/30 border border-primary-500/30 rounded-lg p-6 flex-1 flex flex-col gap-6 animate-in fade-in slide-in-from-right-4">
-                        <div>
+                    <div className="bg-surface/30 border border-primary-500/30 rounded-lg p-4 flex-1 flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 overflow-hidden">
+                        <div className="shrink-0">
                             <span className="text-xs font-bold text-primary-400 tracking-wider">SELECTED CREW</span>
                             <h2 className="text-2xl font-display text-white mt-1">{selectedPilot.name || selectedPilot._id}</h2>
                             <div className="flex gap-4 mt-2 text-sm text-gray-400">
@@ -131,8 +144,8 @@ const CrewManagement = () => {
                         </div>
 
                         {/* FATIGUE & REST */}
-                        <div className="p-4 bg-black/40 rounded border border-surface-border">
-                            <div className="flex justify-between items-center mb-4">
+                        <div className="p-3 bg-black/40 rounded border border-surface-border shrink-0">
+                            <div className="flex justify-between items-center mb-2">
                                 <span className="text-sm font-bold text-gray-300">Fatigue Risk</span>
                                 <span className={`text-xl font-mono ${(selectedPilot.fatigue_score * 100) > 80 ? 'text-red-500' : 'text-green-500'}`}>
                                     {(selectedPilot.fatigue_score * 100).toFixed(0)}%
@@ -140,14 +153,14 @@ const CrewManagement = () => {
                             </div>
                             <button
                                 onClick={() => handleAllocateRest(selectedPilot._id)}
-                                className="w-full py-3 bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500/50 rounded font-bold transition-all"
+                                className="w-full py-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500/50 rounded font-bold transition-all text-xs"
                             >
                                 Grant 24h Mandatory Rest
                             </button>
                         </div>
 
                         {/* FLIGHT MODIFIER & COST */}
-                        <div className="p-4 bg-black/40 rounded border border-surface-border flex-1">
+                        <div className="p-4 bg-black/40 rounded border border-surface-border flex-1 overflow-y-auto scrollbar-thin">
                             <h4 className="text-sm font-bold text-gray-300 mb-4">Modify Schedule & Calculate Cost</h4>
 
                             <div className="flex gap-2 mb-4">
@@ -164,24 +177,60 @@ const CrewManagement = () => {
                                 onClick={calculateCost}
                                 className="w-full py-2 bg-primary-600 hover:bg-primary-500 text-white rounded font-bold mb-4"
                             >
-                                Calculate Impact
+                                Calculate Detailed Impact
                             </button>
 
                             {costData && (
-                                <div className="space-y-3 pt-4 border-t border-gray-800">
-                                    <div className="flex justify-between text-sm">
-                                        <span className="text-gray-400">Financial Cost:</span>
-                                        <span className="text-xl font-mono text-yellow-400">₹{costData.cost.toLocaleString()}</span>
+                                <div className="space-y-3 pt-4 border-t border-gray-800 animate-fadeIn">
+                                    <h5 className="text-xs text-gray-500 font-bold uppercase tracking-wider">Cost Breakdown</h5>
+
+                                    <div className="bg-black/40 rounded p-2">
+                                        <table className="w-full text-xs">
+                                            <tbody>
+                                                {costData.breakdown && costData.breakdown.map((item, i) => (
+                                                    <tr key={i} className="border-b border-gray-800/50 last:border-0">
+                                                        <td className="py-1 text-gray-400">{item.category}</td>
+                                                        <td className="py-1 text-right font-mono text-white">₹{item.amount.toLocaleString()}</td>
+                                                    </tr>
+                                                ))}
+                                                <tr className="border-t border-gray-700 font-bold">
+                                                    <td className="py-2 text-white">TOTAL ESTIMATED COST</td>
+                                                    <td className="py-2 text-right font-mono text-yellow-400 text-sm">₹{costData.cost.toLocaleString()}</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
                                     </div>
-                                    <div className="flex justify-between text-sm">
+
+                                    <div className="flex justify-between text-sm items-center bg-gray-900/50 p-2 rounded">
                                         <span className="text-gray-400">Fatigue Impact:</span>
-                                        <span className="font-mono text-white">
+                                        <span className={`font-mono font-bold ${costData.projected_fatigue > 0.8 ? 'text-red-500' : 'text-green-500'}`}>
                                             {(selectedPilot.fatigue_score * 100).toFixed(0)}% &rarr; {(costData.projected_fatigue * 100).toFixed(0)}%
                                         </span>
                                     </div>
+
                                     {costData.is_overtime && (
-                                        <div className="text-xs text-red-400 bg-red-900/20 p-2 rounded text-center border border-red-900/50">
-                                            ⚠️ Includes Overtime Rates
+                                        <div className="text-xs text-red-300 bg-red-900/30 p-2 rounded text-center border border-red-500/30 flex items-center justify-center gap-2">
+                                            <span>⚠️</span>
+                                            <span>High Cost: Includes Overtime / Slab Rates</span>
+                                        </div>
+                                    )}
+
+                                    {costData.compliance && (
+                                        <div className="space-y-2 pt-2 border-t border-gray-800">
+                                            <h5 className="text-xs text-gray-500 font-bold uppercase tracking-wider">Compliance Checks</h5>
+
+                                            <div className="flex justify-between text-xs items-center bg-gray-900/50 p-2 rounded">
+                                                <span className="text-gray-400">Rest Period</span>
+                                                <span className="font-mono text-green-400">{costData.compliance.rest_48h}</span>
+                                            </div>
+                                            <div className="flex justify-between text-xs items-center bg-gray-900/50 p-2 rounded">
+                                                <span className="text-gray-400">Night Flights</span>
+                                                <span className="font-mono text-yellow-500">{costData.compliance.night_flights}</span>
+                                            </div>
+                                            <div className="flex justify-between text-xs items-center bg-gray-900/50 p-2 rounded">
+                                                <span className="text-gray-400">Recent Duty</span>
+                                                <span className="font-mono text-blue-400">{costData.compliance.recent_duty}</span>
+                                            </div>
                                         </div>
                                     )}
                                 </div>

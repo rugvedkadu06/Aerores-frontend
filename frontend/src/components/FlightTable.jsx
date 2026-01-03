@@ -33,6 +33,8 @@ export default function FlightTable({ flights, onRowClick }) {
                         let statusColor = 'border-gray-500 text-gray-400';
                         if (flight.status === 'ON_TIME' || flight.status === 'SCHEDULED') statusColor = 'border-status-success text-status-success bg-status-success/10';
                         if (flight.status === 'DELAYED') statusColor = 'border-status-warning text-status-warning bg-status-warning/10';
+                        if (flight.status === 'DELAYED') statusColor = 'border-status-warning text-status-warning bg-status-warning/10';
+                        if (flight.status === 'SWAPPED') statusColor = 'border-purple-500 text-purple-400 bg-purple-500/10';
                         if (flight.status === 'CANCELLED' || flight.status === 'CRITICAL') statusColor = 'border-status-danger text-status-danger bg-status-danger/10';
 
                         const etd = flight.scheduledDeparture ? new Date(flight.scheduledDeparture).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "--:--";

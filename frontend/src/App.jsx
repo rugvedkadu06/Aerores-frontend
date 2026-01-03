@@ -184,7 +184,7 @@ function UnifiedDashboard() {
             AERO<span className={isCrisis ? 'text-white' : 'text-accent'}>RESILIENCE</span>
           </h1>
           <div className="flex gap-4 mt-2">
-            {['DASHBOARD', 'SIMULATION', 'ANALYSIS'].map(tab => (
+            {['DASHBOARD', 'CREW', 'SIMULATION', 'ANALYSIS'].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -197,9 +197,6 @@ function UnifiedDashboard() {
         </div>
 
         <div className="flex items-center gap-4">
-          <Link to="/crew" className="text-xs font-mono text-gray-400 hover:text-blue-400 flex items-center gap-1 border-r border-gray-700 pr-4">
-            <span>👥</span> CREW OPS
-          </Link>
           <Link to="/passenger" className="text-xs font-mono text-gray-400 hover:text-accent flex items-center gap-1">
             <span>➜</span> PASSENGER BRIDGE
           </Link>
@@ -268,6 +265,8 @@ function UnifiedDashboard() {
           </div>
         )}
 
+        {/* --- TABS CONTENT --- */}
+
         {activeTab === 'DASHBOARD' && (
           <div className="grid grid-cols-12 gap-6 h-full">
             <div className="col-span-3 bg-bg-panel border border-surface-border rounded-xl p-4 flex flex-col overflow-hidden">
@@ -288,6 +287,10 @@ function UnifiedDashboard() {
               </div>
             </div>
           </div>
+        )}
+
+        {activeTab === 'CREW' && (
+          <CrewManagement pilots={pilots} onRefresh={fetchData} />
         )}
 
         {activeTab === 'SIMULATION' && (
