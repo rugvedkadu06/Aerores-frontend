@@ -19,13 +19,13 @@ const AgentStatusVisualizer = ({ status, mode, latestLog, onRefresh }) => {
       <div className={`w-3 h-3 rounded-full ${status === 'CRITICAL' ? 'bg-status-danger animate-ping' : 'bg-status-success'}`}></div>
       <div className="flex-1">
         <div className="flex justify-between items-center text-xs font-mono mb-1">
-          <span className="text-gray-400">AGENT_STATE</span>
+          <span className="text-gray-400">CO-PILOT_STATE</span>
           <span className={status === 'CRITICAL' ? 'text-status-danger' : 'text-status-success'}>
-            {status === 'CRITICAL' ? 'INTERVENTION_REQUIRED' : 'MONITORING_LIVE'}
+            {status === 'CRITICAL' ? 'AWAITING_APPROVAL' : 'MONITORING_OPS'}
           </span>
         </div>
         <div className="text-[10px] text-accent truncate max-w-[200px] opacity-80">
-          {latestLog || "System Idle..."}
+          {latestLog || "Co-Pilot Standby..."}
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -48,7 +48,7 @@ const AgentStatusVisualizer = ({ status, mode, latestLog, onRefresh }) => {
 const LoadingScreen = () => (
   <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center animate-fadeOut pointer-events-none delay-[2000ms]">
     <div className="text-4xl font-bold tracking-tighter text-white mb-4 animate-pulse">
-      AERO<span className="text-accent">RESILIENCE</span>
+      SKY<span className="text-accent">COPILOT</span>
     </div>
     <div className="w-64 h-1 bg-gray-800 rounded-full overflow-hidden">
       <div className="h-full bg-accent animate-loadingBar"></div>
@@ -66,6 +66,7 @@ function UnifiedDashboard() {
   const [total, setTotal] = useState(0);
   const [mode, setMode] = useState('AUTO');
   const [options, setOptions] = useState([]);
+  const [recommendation, setRecommendation] = useState(null); // New state for Co-Pilot Rec
   const [selectedFlight, setSelectedFlight] = useState(null);
 
   const [activeTab, setActiveTab] = useState('DASHBOARD');
@@ -119,22 +120,30 @@ function UnifiedDashboard() {
     const res = await axios.post(`${API_URL}/heal`, { mode });
     if (res.data.status === 'OPTIONS_GENERATED') {
       setOptions(res.data.options);
-      setShowDelayInput(false); // Reset input state
+      setRecommendation(res.data); // Store full recommendation packet
+      setShowDelayInput(false);
     } else {
-      // Don't clear options immediately if in manual mode to prevent flicker
-      if (mode !== 'MANUAL') setOptions([]);
+      if (mode !== 'MANUAL') {
+        setOptions([]);
+        setRecommendation(null);
+      }
     }
     fetchData();
   };
 
   const resolveCrisis = async (option) => {
-    if (option.action_type === 'DELAY_MANUAL') {
-      setPendingOption(option);
+    // If approving recommended strategy, use it directly
+    const optToUse = option || (recommendation ? recommendation.recommended_strategy : null);
+    if (!optToUse) return;
+
+    if (optToUse.action_type === 'DELAY_MANUAL') {
+      setPendingOption(optToUse);
       setShowDelayInput(true);
       return;
     }
-    await axios.post(`${API_URL}/resolve`, { option });
+    await axios.post(`${API_URL}/resolve`, { option: optToUse });
     setOptions([]);
+    setRecommendation(null);
     fetchData();
   };
 
@@ -147,6 +156,7 @@ function UnifiedDashboard() {
     };
     await axios.post(`${API_URL}/resolve`, { option: finalOption });
     setOptions([]);
+    setRecommendation(null);
     setShowDelayInput(false);
     fetchData();
   };
@@ -181,7 +191,7 @@ function UnifiedDashboard() {
       <header className="flex flex-col md:flex-row justify-between items-end border-b border-surface-border p-4 pb-2 bg-bg-panel/50 backdrop-blur-md z-50">
         <div>
           <h1 className={`text-3xl font-bold tracking-tighter ${isCrisis ? 'text-status-danger animate-pulse' : 'text-white'}`}>
-            AERO<span className={isCrisis ? 'text-white' : 'text-accent'}>RESILIENCE</span>
+            SKY<span className={isCrisis ? 'text-white' : 'text-accent'}>COPILOT</span>
           </h1>
           <div className="flex gap-4 mt-2">
             {['DASHBOARD', 'CREW', 'SIMULATION', 'ANALYSIS'].map(tab => (
@@ -217,47 +227,136 @@ function UnifiedDashboard() {
 
       <main className="flex-1 overflow-hidden p-6 relative">
 
-        {isCrisis && mode === 'MANUAL' && options.length > 0 && (
-          <div className="absolute top-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-2xl animate-slideDown">
-            <div className="bg-bg-void/90 backdrop-blur-xl border border-status-danger rounded-xl p-6 shadow-[0_0_50px_rgba(239,68,68,0.3)]">
-              <h3 className="text-status-danger font-bold text-lg mb-1 flex items-center gap-2">
-                <span className="w-2 h-2 bg-status-danger rounded-full animate-ping"></span>
-                CRITICAL MONITORING ALERT
-              </h3>
-              <p className="text-gray-400 text-sm mb-4">Agent has detected a predicted failure. Select a resolution strategy:</p>
+        {/* --- SAFETY BANNER --- */}
+        <div className="bg-blue-900/30 border-b border-blue-800 p-1 text-center text-[10px] font-mono text-blue-200 tracking-widest uppercase">
+          🛡️ Global Safety Protocol Active: Human Dignity & Ethics Prioritized Over Efficiency
+        </div>
 
+        {/* --- CO-PILOT INTERVENTION MODAL --- */}
+        {isCrisis && recommendation && (
+          <div className="absolute top-10 left-1/2 -translate-x-1/2 z-40 w-full max-w-4xl animate-slideDown">
+            <div className="bg-bg-void/95 backdrop-blur-xl border border-status-danger rounded-xl p-8 shadow-[0_0_100px_rgba(239,68,68,0.4)] flex flex-col gap-6">
+
+              {/* Header */}
+              <div className="flex justify-between items-start border-b border-gray-800 pb-4">
+                <div>
+                  <h3 className="text-status-danger font-bold text-2xl mb-1 flex items-center gap-3">
+                    <span className="w-3 h-3 bg-status-danger rounded-full animate-ping"></span>
+                    CRITICAL OPS ALERT
+                  </h3>
+                  <p className="text-gray-400 text-sm">Disruption Detected. AI Co-Pilot has analyzed {options.length} strategies.</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-gray-500 font-mono">CONFIDENCE</div>
+                  <div className="text-xl font-bold text-accent">98.5%</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-12 gap-8">
+                {/* LEFT: Recommendation Engine */}
+                <div className="col-span-8 space-y-4">
+                  <div className="bg-status-success/10 border border-status-success/50 p-5 rounded-lg relative overflow-hidden">
+                    <div className="absolute top-0 right-0 bg-status-success text-black text-[10px] font-bold px-2 py-1">BEST RECOMMENDATION</div>
+                    <h4 className="text-status-success font-bold text-lg mb-2">{recommendation.recommended_strategy.title}</h4>
+                    <p className="text-gray-300 text-sm mb-4">{recommendation.recommended_strategy.description}</p>
+
+                    {/* Explainability Trace */}
+                    <div className="bg-black/40 rounded p-3 text-xs font-mono text-gray-400 border-l-2 border-status-success">
+                      <div className="text-gray-500 mb-1">REASONING TRACE:</div>
+                      {recommendation.reasoning_trace.map((line, i) => (
+                        <div key={i}>&gt; {line}</div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Sustainability Impact */}
+                  {recommendation.sustainability_impact && (
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-surface p-3 rounded border border-surface-border text-center">
+                        <div className="text-xl font-bold text-accent">{recommendation.sustainability_impact.co2_saved_kg} kg</div>
+                        <div className="text-[10px] text-gray-500">CO2 SAVED</div>
+                      </div>
+                      <div className="bg-surface p-3 rounded border border-surface-border text-center">
+                        <div className="text-xl font-bold text-white">{parseInt(recommendation.sustainability_impact.fuel_saved_liters)} L</div>
+                        <div className="text-[10px] text-gray-500">FUEL SAVED</div>
+                      </div>
+                      <div className="bg-surface p-3 rounded border border-surface-border flex items-center justify-center text-center">
+                        <div className="text-[10px] text-gray-400 italic">"{recommendation.sustainability_impact.energy_efficiency_note}"</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* RIGHT: Actions */}
+                <div className="col-span-4 flex flex-col gap-3 justify-center border-l border-gray-800 pl-8">
+                  <button
+                    onClick={() => resolveCrisis(recommendation.recommended_strategy)}
+                    className="w-full py-4 bg-status-success hover:bg-green-600 text-black font-bold rounded shadow-lg shadow-green-900/20 active:scale-95 transition-all text-sm tracking-wide"
+                  >
+                    APPROVE CO-PILOT
+                  </button>
+
+                  <div className="text-center text-[10px] text-gray-500 my-2">- OR -</div>
+
+                  <button
+                    onClick={() => { setRecommendation(null); setMode('MANUAL'); }}
+                    className="w-full py-3 bg-surface border border-gray-600 hover:bg-gray-800 text-white rounded transition-colors text-xs flex items-center justify-center gap-2"
+                  >
+                    <span>☰</span>
+                    {options.some(o => o.action_type === 'SWAP_FLIGHT') ? "VIEW SWAP OPTIONS" : "VIEW ALL OPTIONS"}
+                  </button>
+
+                  <button
+                    onClick={() => resolveCrisis({ action_type: 'DELAY_MANUAL', payload: { flight_id: recommendation.recommended_strategy.payload.flight_id } })}
+                    className="w-full py-3 bg-red-900/20 border border-status-danger text-status-danger hover:bg-red-900/40 rounded transition-colors text-xs"
+                  >
+                    MANUAL OVERRIDE
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Manual Fallback List (Only if recommendation ignored or manual mode) */}
+        {isCrisis && !recommendation && options.length > 0 && mode === 'MANUAL' && (
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-2xl animate-slideDown">
+            <div className="bg-bg-void/90 backdrop-blur-xl border border-status-warning rounded-xl p-6 shadow-[0_0_50px_rgba(234,179,8,0.3)]">
+              <h3 className="text-status-warning font-bold text-lg mb-4 flex items-center gap-2">
+                ⚠️ MANUAL OVERRIDE MODE
+              </h3>
               {!showDelayInput ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-2 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin">
                   {options.map(opt => (
                     <button
                       key={opt.id}
                       onClick={() => resolveCrisis(opt)}
-                      className={`text-left p-4 rounded-lg border transition-all relative overflow-hidden group
-                                        ${opt.action_type === 'ASSIGN' ? 'border-status-success bg-status-success/10 hover:bg-status-success/20' :
-                          opt.action_type === 'DELAY_MANUAL' ? 'border-status-warning bg-status-warning/10 hover:bg-status-warning/20' :
-                            'border-status-danger bg-status-danger/10 hover:bg-status-danger/20'}
-                                    `}
+                      className={`text-left p-3 rounded border transition-all group relative overflow-hidden ${opt.action_type === 'SWAP_FLIGHT' ? 'border-accent/40 hover:bg-accent/10' : 'border-surface-border hover:bg-surface'}`}
                     >
-                      <div className="font-bold text-white mb-1">{opt.title}</div>
-                      <div className="text-xs text-gray-400">{opt.description}</div>
+                      {opt.action_type === 'SWAP_FLIGHT' && <div className="absolute top-0 right-0 bg-accent text-black text-[9px] font-bold px-1 rounded-bl">SWAP</div>}
+
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">{opt.action_type === 'SWAP_FLIGHT' ? '🔁' : opt.action_type === 'ASSIGN' ? '👨‍✈️' : '⏱️'}</span>
+                        <div>
+                          <div className={`font-bold text-sm ${opt.action_type === 'SWAP_FLIGHT' ? 'text-accent' : 'text-white'}`}>{opt.title}</div>
+                          <div className="text-xs text-gray-500">{opt.description}</div>
+                        </div>
+                      </div>
                     </button>
                   ))}
+                  <button onClick={() => fetchData()} className="text-xs text-gray-500 mt-2 underline text-center w-full">Refresh Strategies</button>
                 </div>
               ) : (
+                // ... Manual Delay Input Same as before ...
                 <div className="bg-surface p-4 rounded border border-status-warning/50 animate-fadeIn">
                   <h4 className="text-status-warning font-bold mb-2">Configure Manual Delay</h4>
                   <div className="mb-4">
-                    <label className="text-xs text-gray-400 block mb-1">Delay Duration (Minutes)</label>
-                    <input
-                      type="number"
-                      className="w-full bg-black border border-gray-700 rounded p-2 text-white font-mono focus:border-accent outline-none"
-                      value={manualDelayMinutes}
-                      onChange={(e) => setManualDelayMinutes(e.target.value)}
-                    />
+                    <label className="text-xs text-gray-400 block mb-1">Duration (Minutes)</label>
+                    <input type="number" className="w-full bg-black border border-gray-700 rounded p-2 text-white" value={manualDelayMinutes} onChange={(e) => setManualDelayMinutes(e.target.value)} />
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={confirmManualDelay} className="flex-1 bg-status-warning hover:bg-yellow-500 text-black font-bold py-2 rounded">CONFIRM DELAY</button>
-                    <button onClick={() => setShowDelayInput(false)} className="px-4 py-2 border border-gray-700 rounded text-gray-400 hover:text-white">BACK</button>
+                    <button onClick={confirmManualDelay} className="flex-1 bg-status-warning text-black font-bold py-2 rounded">CONFIRM</button>
+                    <button onClick={() => setShowDelayInput(false)} className="px-4 py-2 border border-gray-700 rounded text-gray-400">BACK</button>
                   </div>
                 </div>
               )}
@@ -378,23 +477,25 @@ function UnifiedDashboard() {
               </div>
             </div>
             <div className="bg-bg-panel border border-surface-border rounded-xl p-6">
-              <h3 className="text-sm font-bold text-white mb-4">OPERATIONAL EFFICIENCY</h3>
+              <h3 className="text-sm font-bold text-white mb-4">🌱 GREEN OPERATIONS IMPACT (Industry 5.0)</h3>
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-surface p-4 rounded text-center">
-                  <div className="text-2xl font-bold text-accent">{total}</div>
-                  <div className="text-xs text-gray-500">ACTIVE FLIGHTS</div>
+                <div className="bg-surface p-4 rounded text-center border border-green-900/50">
+                  <div className="text-3xl font-bold text-green-400">1,240 <span className="text-xs text-gray-500">kg</span></div>
+                  <div className="text-xs text-gray-400 mt-1">CO2 EMISSIONS PREVENTED</div>
                 </div>
-                <div className="bg-surface p-4 rounded text-center">
-                  <div className="text-2xl font-bold text-status-success">98%</div>
-                  <div className="text-xs text-gray-500">SCHEDULE ADHERENCE</div>
+                <div className="bg-surface p-4 rounded text-center border border-green-900/50">
+                  <div className="text-3xl font-bold text-green-400">480 <span className="text-xs text-gray-500">L</span></div>
+                  <div className="text-xs text-gray-400 mt-1">AVIATION FUEL SAVED</div>
                 </div>
-                <div className="bg-surface p-4 rounded text-center">
-                  <div className="text-2xl font-bold text-status-warning">{pilots.length}</div>
-                  <div className="text-xs text-gray-500">ROSTERED CREW</div>
-                </div>
-                <div className="bg-surface p-4 rounded text-center">
-                  <div className="text-2xl font-bold text-white">4.2m</div>
-                  <div className="text-xs text-gray-500">COST SAVED (YTD)</div>
+                <div className="bg-surface p-4 rounded text-center col-span-2 flex items-center justify-between px-8">
+                  <div className="text-left">
+                    <div className="text-xl font-bold text-white">94%</div>
+                    <div className="text-[10px] text-gray-500">ECO-OPTIMIZED RESOLUTIONS</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xl font-bold text-white">12.5h</div>
+                    <div className="text-[10px] text-gray-500">IDLE ENGINE TIME AVOIDED</div>
+                  </div>
                 </div>
               </div>
             </div>

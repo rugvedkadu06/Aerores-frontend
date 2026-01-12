@@ -1,17 +1,20 @@
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import sys
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def test_email():
-    sender_email = "demorgvd2@gmail.com" 
-    sender_password = "viop xdcq nazc hsjv" 
+    sender_email = os.getenv("EMAIL_USER") 
+    sender_password = os.getenv("EMAIL_PASS") 
     receiver_email = "kadurugved0@gmail.com"
     
     msg = MIMEMultipart()
     msg['From'] = sender_email
     msg['To'] = receiver_email
-    msg['Subject'] = "AeroResilience Test Email"
+    msg['Subject'] = "SkyCoPilot Test Email"
     
     body = "This is a test email from the debugging script."
     msg.attach(MIMEText(body, 'plain'))

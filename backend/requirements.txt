@@ -4,3 +4,4 @@ motor
 python-dotenv
 ortools
 pydantic
+google-genai
