@@ -1,8 +1,26 @@
-
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  Plane,
+  AlertTriangle,
+  Users,
+  CheckCircle,
+  Wind,
+  Cpu,
+  Radio,
+  Clock,
+  RotateCw,
+  Zap,
+  Leaf,
+  Info,
+  Activity
+} from 'lucide-react';
+
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 import FatigueGauge from './components/FatigueGauge';
 import FlightTable from './components/FlightTable';
@@ -13,72 +31,49 @@ import CrewManagement from './views/CrewManagement';
 
 const API_URL = 'http://localhost:8000';
 
-const AgentStatusVisualizer = ({ status, mode, latestLog, onRefresh }) => {
-  return (
-    <div className="flex items-center gap-4 bg-black/40 border border-surface-border p-3 rounded-lg backdrop-blur-sm">
-      <div className={`w-3 h-3 rounded-full ${status === 'CRITICAL' ? 'bg-status-danger animate-ping' : 'bg-status-success'}`}></div>
-      <div className="flex-1">
-        <div className="flex justify-between items-center text-xs font-mono mb-1">
-          <span className="text-gray-400">CO-PILOT_STATE</span>
-          <span className={status === 'CRITICAL' ? 'text-status-danger' : 'text-status-success'}>
-            {status === 'CRITICAL' ? 'AWAITING_APPROVAL' : 'MONITORING_OPS'}
-          </span>
-        </div>
-        <div className="text-[10px] text-accent truncate max-w-[200px] opacity-80">
-          {latestLog || "Co-Pilot Standby..."}
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="text-xs font-bold font-mono px-2 py-1 rounded bg-surface border border-surface-border">
-          {mode}
-        </div>
-        <button
-          onClick={onRefresh}
-          className="p-1 rounded bg-surface border border-surface-border hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
-          title="Force Refresh"
-        >
-          ↻
-        </button>
-      </div>
-    </div>
-  );
-};
+// --- HELPER COMPONENTS ---
 
-// --- LOADING SCREEN ---
-const LoadingScreen = () => (
-  <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center animate-fadeOut pointer-events-none delay-[2000ms]">
-    <div className="text-4xl font-bold tracking-tighter text-white mb-4 animate-pulse">
-      SKY<span className="text-accent">COPILOT</span>
-    </div>
-    <div className="w-64 h-1 bg-gray-800 rounded-full overflow-hidden">
-      <div className="h-full bg-accent animate-loadingBar"></div>
-    </div>
-    <div className="mt-2 text-xs font-mono text-gray-500">INITIALIZING AI AGENTS...</div>
+const StatusIndicator = ({ status, text }) => (
+  <div className="flex items-center gap-2">
+    <div className={`w-2 h-2 rounded-full ${status === 'CRITICAL' ? 'bg-destructive animate-pulse' : 'bg-green-500'}`} />
+    <span className="text-xs font-medium text-muted-foreground">{text}</span>
   </div>
 );
 
-function UnifiedDashboard() {
+const KPICard = ({ title, value, icon: Icon, trend, colorString }) => (
+  <Card className="bg-card border-border">
+    <CardContent className="p-6 flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-muted-foreground mb-1">{title}</p>
+        <h3 className="text-2xl font-bold tracking-tight text-foreground">{value}</h3>
+      </div>
+      <div className={`p-3 rounded-full bg-opacity-10 ${colorString}`}>
+        <Icon className={`w-6 h-6 ${colorString.replace('bg-', 'text-')}`} />
+      </div>
+    </CardContent>
+  </Card>
+);
+
+const UnifiedDashboard = () => {
   const [pilots, setPilots] = useState([]);
   const [flights, setFlights] = useState([]);
   const [logs, setLogs] = useState([]);
   const [status, setStatus] = useState('VALID');
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const [mode, setMode] = useState('AUTO');
   const [options, setOptions] = useState([]);
-  const [recommendation, setRecommendation] = useState(null); // New state for Co-Pilot Rec
+  const [recommendation, setRecommendation] = useState(null);
   const [selectedFlight, setSelectedFlight] = useState(null);
-
   const [activeTab, setActiveTab] = useState('DASHBOARD');
 
-  // Simulation State
+  // Sim State
   const [simType, setSimType] = useState('WEATHER');
   const [simSubType, setSimSubType] = useState('Fog');
-  const [targetFlight, setTargetFlight] = useState(''); // Empty = All
+  const [targetFlight, setTargetFlight] = useState('');
 
   const [isLoading, setIsLoading] = useState(true);
 
-  // Manual Delay State
+  // Manual Delay
   const [showDelayInput, setShowDelayInput] = useState(false);
   const [manualDelayMinutes, setManualDelayMinutes] = useState(60);
   const [pendingOption, setPendingOption] = useState(null);
@@ -89,7 +84,6 @@ function UnifiedDashboard() {
       setPilots(dataRes.data.pilot_readiness || []);
       setFlights(dataRes.data.flights || []);
       setLogs(dataRes.data.agent_logs || []);
-      setTotal(dataRes.data.total_flights || 0);
 
       const statusRes = await axios.get(`${API_URL}/status`);
       setStatus(statusRes.data.status);
@@ -99,8 +93,7 @@ function UnifiedDashboard() {
   };
 
   useEffect(() => {
-    // Show splash on mount
-    const timer = setTimeout(() => setIsLoading(false), 2500);
+    const timer = setTimeout(() => setIsLoading(false), 5000);
     fetchData();
     const interval = setInterval(fetchData, 2000);
     return () => {
@@ -110,17 +103,14 @@ function UnifiedDashboard() {
   }, [page]);
 
   useEffect(() => {
-    // FIX: Trigger heal logic regardless of mode if status is invalid
-    if (status !== 'VALID') {
-      handleHeal();
-    }
+    if (status !== 'VALID') handleHeal();
   }, [status, mode]);
 
   const handleHeal = async () => {
     const res = await axios.post(`${API_URL}/heal`, { mode });
     if (res.data.status === 'OPTIONS_GENERATED') {
       setOptions(res.data.options);
-      setRecommendation(res.data); // Store full recommendation packet
+      setRecommendation(res.data);
       setShowDelayInput(false);
     } else {
       if (mode !== 'MANUAL') {
@@ -132,7 +122,6 @@ function UnifiedDashboard() {
   };
 
   const resolveCrisis = async (option) => {
-    // If approving recommended strategy, use it directly
     const optToUse = option || (recommendation ? recommendation.recommended_strategy : null);
     if (!optToUse) return;
 
@@ -161,11 +150,6 @@ function UnifiedDashboard() {
     fetchData();
   };
 
-  const handleReset = async () => {
-    await axios.get(`${API_URL}/seed`);
-    fetchData();
-  };
-
   const runSim = async () => {
     await axios.post(`${API_URL}/simulate`, {
       type: simType,
@@ -176,349 +160,327 @@ function UnifiedDashboard() {
     });
   };
 
-  const isCrisis = status !== 'VALID';
+  const handleReset = async () => {
+    await axios.get(`${API_URL}/seed`);
+    fetchData();
+  };
 
-  const analyticsData = flights.map(f => ({
-    name: f.flightNumber,
-    risk: f.predictedFailure ? 100 : 10,
-    fatigue: pilots.find(p => p._id === f.assignedPilotId)?.fatigue_score * 100 || 0
-  })).slice(0, 10);
+  const isCrisis = status !== 'VALID';
+  const activeDisruptions = flights.filter(f => f.status === 'DELAYED' || f.status === 'CANCELLED').length + (isCrisis ? 1 : 0);
 
   return (
-    <div className={`h-screen font-sans selection:bg-accent selection:text-bg-void overflow-hidden flex flex-col transition-colors duration-1000 ${isCrisis ? 'shadow-[inset_0_0_100px_rgba(239,68,68,0.2)]' : ''}`}>
-      {isLoading && <LoadingScreen />}
-
-      <header className="flex flex-col md:flex-row justify-between items-end border-b border-surface-border p-4 pb-2 bg-bg-panel/50 backdrop-blur-md z-50">
-        <div>
-          <h1 className={`text-3xl font-bold tracking-tighter ${isCrisis ? 'text-status-danger animate-pulse' : 'text-white'}`}>
-            SKY<span className={isCrisis ? 'text-white' : 'text-accent'}>COPILOT</span>
-          </h1>
-          <div className="flex gap-4 mt-2">
-            {['DASHBOARD', 'CREW', 'SIMULATION', 'ANALYSIS'].map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`text-xs font-mono font-bold tracking-widest pb-1 border-b-2 transition-all ${activeTab === tab ? 'border-accent text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+    <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary selection:text-primary-foreground">
+      {isLoading && (
+        <div className="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center animate-out fade-out duration-1000 delay-[2000ms] fill-mode-forwards pointer-events-none">
+          <h1 className="text-4xl font-bold animate-pulse text-primary">SKY<span className="text-foreground">COPILOT</span></h1>
         </div>
+      )}
 
-        <div className="flex items-center gap-4">
-          <Link to="/passenger" className="text-xs font-mono text-gray-400 hover:text-accent flex items-center gap-1">
-            <span>➜</span> PASSENGER BRIDGE
-          </Link>
-          <AgentStatusVisualizer
-            status={status}
-            mode={mode}
-            latestLog={logs[logs.length - 1]}
-            onRefresh={fetchData}
-          />
-
-          <div className="flex bg-surface border border-surface-border rounded p-0.5">
-            <button onClick={() => setMode('AUTO')} className={`px-2 py-0.5 text-[10px] font-bold rounded ${mode === 'AUTO' ? 'bg-accent text-bg-void' : 'text-gray-500'}`}>AUTO</button>
-            <button onClick={() => setMode('MANUAL')} className={`px-2 py-0.5 text-[10px] font-bold rounded ${mode === 'MANUAL' ? 'bg-status-warning text-bg-void' : 'text-gray-500'}`}>MANUAL</button>
+      {/* Header */}
+      <header className="border-b border-border bg-card/50 backdrop-blur sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+          <div className="flex items-center gap-6">
+            <h1 className="text-2xl font-bold tracking-tighter">
+              SKY<span className="text-primary">COPILOT</span>
+            </h1>
+            <nav className="hidden md:flex gap-4">
+              <Button variant={activeTab === 'DASHBOARD' ? "secondary" : "ghost"} size="sm" onClick={() => setActiveTab('DASHBOARD')}>DASHBOARD</Button>
+              <Button variant={activeTab === 'CREW' ? "secondary" : "ghost"} size="sm" onClick={() => setActiveTab('CREW')}>CREW</Button>
+              <Button variant={activeTab === 'SIMULATION' ? "secondary" : "ghost"} size="sm" onClick={() => setActiveTab('SIMULATION')}>SIMULATION</Button>
+            </nav>
           </div>
-          <button onClick={handleReset} className="text-[10px] bg-red-900/30 text-red-400 border border-red-900 px-2 py-1 rounded hover:bg-red-900/50">RESET DB</button>
+
+          <div className="flex items-center gap-3">
+            <Link to="/passenger">
+              <Button variant="ghost" size="sm" className="text-muted-foreground gap-2">
+                Passenger Bridge <Users className="w-4 h-4" />
+              </Button>
+            </Link>
+            <div className="flex items-center bg-secondary rounded-md p-1">
+              <Button
+                variant={mode === 'AUTO' ? 'default' : 'ghost'}
+                size="xs"
+                className="h-7 text-xs px-2"
+                onClick={() => setMode('AUTO')}
+              >AUTO</Button>
+              <Button
+                variant={mode === 'MANUAL' ? 'destructive' : 'ghost'}
+                size="xs"
+                className="h-7 text-xs px-2"
+                onClick={() => setMode('MANUAL')}
+              >MANUAL</Button>
+            </div>
+            <Button variant="outline" size="icon" onClick={fetchData} title="Refresh Data">
+              <RotateCw className="w-4 h-4" />
+            </Button>
+            <Button variant="destructive" size="sm" onClick={handleReset}>RESET DB</Button>
+          </div>
         </div>
       </header>
 
-      <main className="flex-1 overflow-hidden p-6 relative">
-
-        {/* --- SAFETY BANNER --- */}
-        <div className="bg-blue-900/30 border-b border-blue-800 p-1 text-center text-[10px] font-mono text-blue-200 tracking-widest uppercase">
-          🛡️ Global Safety Protocol Active: Human Dignity & Ethics Prioritized Over Efficiency
-        </div>
-
-        {/* --- CO-PILOT INTERVENTION MODAL --- */}
-        {isCrisis && recommendation && (
-          <div className="absolute top-10 left-1/2 -translate-x-1/2 z-40 w-full max-w-4xl animate-slideDown">
-            <div className="bg-bg-void/95 backdrop-blur-xl border border-status-danger rounded-xl p-8 shadow-[0_0_100px_rgba(239,68,68,0.4)] flex flex-col gap-6">
-
-              {/* Header */}
-              <div className="flex justify-between items-start border-b border-gray-800 pb-4">
-                <div>
-                  <h3 className="text-status-danger font-bold text-2xl mb-1 flex items-center gap-3">
-                    <span className="w-3 h-3 bg-status-danger rounded-full animate-ping"></span>
-                    CRITICAL OPS ALERT
-                  </h3>
-                  <p className="text-gray-400 text-sm">Disruption Detected. AI Co-Pilot has analyzed {options.length} strategies.</p>
-                </div>
-                <div className="text-right">
-                  <div className="text-xs text-gray-500 font-mono">CONFIDENCE</div>
-                  <div className="text-xl font-bold text-accent">98.5%</div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-12 gap-8">
-                {/* LEFT: Recommendation Engine */}
-                <div className="col-span-8 space-y-4">
-                  <div className="bg-status-success/10 border border-status-success/50 p-5 rounded-lg relative overflow-hidden">
-                    <div className="absolute top-0 right-0 bg-status-success text-black text-[10px] font-bold px-2 py-1">BEST RECOMMENDATION</div>
-                    <h4 className="text-status-success font-bold text-lg mb-2">{recommendation.recommended_strategy.title}</h4>
-                    <p className="text-gray-300 text-sm mb-4">{recommendation.recommended_strategy.description}</p>
-
-                    {/* Explainability Trace */}
-                    <div className="bg-black/40 rounded p-3 text-xs font-mono text-gray-400 border-l-2 border-status-success">
-                      <div className="text-gray-500 mb-1">REASONING TRACE:</div>
-                      {recommendation.reasoning_trace.map((line, i) => (
-                        <div key={i}>&gt; {line}</div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Sustainability Impact */}
-                  {recommendation.sustainability_impact && (
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="bg-surface p-3 rounded border border-surface-border text-center">
-                        <div className="text-xl font-bold text-accent">{recommendation.sustainability_impact.co2_saved_kg} kg</div>
-                        <div className="text-[10px] text-gray-500">CO2 SAVED</div>
-                      </div>
-                      <div className="bg-surface p-3 rounded border border-surface-border text-center">
-                        <div className="text-xl font-bold text-white">{parseInt(recommendation.sustainability_impact.fuel_saved_liters)} L</div>
-                        <div className="text-[10px] text-gray-500">FUEL SAVED</div>
-                      </div>
-                      <div className="bg-surface p-3 rounded border border-surface-border flex items-center justify-center text-center">
-                        <div className="text-[10px] text-gray-400 italic">"{recommendation.sustainability_impact.energy_efficiency_note}"</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* RIGHT: Actions */}
-                <div className="col-span-4 flex flex-col gap-3 justify-center border-l border-gray-800 pl-8">
-                  <button
-                    onClick={() => resolveCrisis(recommendation.recommended_strategy)}
-                    className="w-full py-4 bg-status-success hover:bg-green-600 text-black font-bold rounded shadow-lg shadow-green-900/20 active:scale-95 transition-all text-sm tracking-wide"
-                  >
-                    APPROVE CO-PILOT
-                  </button>
-
-                  <div className="text-center text-[10px] text-gray-500 my-2">- OR -</div>
-
-                  <button
-                    onClick={() => { setRecommendation(null); setMode('MANUAL'); }}
-                    className="w-full py-3 bg-surface border border-gray-600 hover:bg-gray-800 text-white rounded transition-colors text-xs flex items-center justify-center gap-2"
-                  >
-                    <span>☰</span>
-                    {options.some(o => o.action_type === 'SWAP_FLIGHT') ? "VIEW SWAP OPTIONS" : "VIEW ALL OPTIONS"}
-                  </button>
-
-                  <button
-                    onClick={() => resolveCrisis({ action_type: 'DELAY_MANUAL', payload: { flight_id: recommendation.recommended_strategy.payload.flight_id } })}
-                    className="w-full py-3 bg-red-900/20 border border-status-danger text-status-danger hover:bg-red-900/40 rounded transition-colors text-xs"
-                  >
-                    MANUAL OVERRIDE
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Manual Fallback List (Only if recommendation ignored or manual mode) */}
-        {isCrisis && !recommendation && options.length > 0 && mode === 'MANUAL' && (
-          <div className="absolute top-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-2xl animate-slideDown">
-            <div className="bg-bg-void/90 backdrop-blur-xl border border-status-warning rounded-xl p-6 shadow-[0_0_50px_rgba(234,179,8,0.3)]">
-              <h3 className="text-status-warning font-bold text-lg mb-4 flex items-center gap-2">
-                ⚠️ MANUAL OVERRIDE MODE
-              </h3>
-              {!showDelayInput ? (
-                <div className="grid grid-cols-1 gap-2 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin">
-                  {options.map(opt => (
-                    <button
-                      key={opt.id}
-                      onClick={() => resolveCrisis(opt)}
-                      className={`text-left p-3 rounded border transition-all group relative overflow-hidden ${opt.action_type === 'SWAP_FLIGHT' ? 'border-accent/40 hover:bg-accent/10' : 'border-surface-border hover:bg-surface'}`}
-                    >
-                      {opt.action_type === 'SWAP_FLIGHT' && <div className="absolute top-0 right-0 bg-accent text-black text-[9px] font-bold px-1 rounded-bl">SWAP</div>}
-
-                      <div className="flex items-center gap-3">
-                        <span className="text-xl">{opt.action_type === 'SWAP_FLIGHT' ? '🔁' : opt.action_type === 'ASSIGN' ? '👨‍✈️' : '⏱️'}</span>
-                        <div>
-                          <div className={`font-bold text-sm ${opt.action_type === 'SWAP_FLIGHT' ? 'text-accent' : 'text-white'}`}>{opt.title}</div>
-                          <div className="text-xs text-gray-500">{opt.description}</div>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                  <button onClick={() => fetchData()} className="text-xs text-gray-500 mt-2 underline text-center w-full">Refresh Strategies</button>
-                </div>
-              ) : (
-                // ... Manual Delay Input Same as before ...
-                <div className="bg-surface p-4 rounded border border-status-warning/50 animate-fadeIn">
-                  <h4 className="text-status-warning font-bold mb-2">Configure Manual Delay</h4>
-                  <div className="mb-4">
-                    <label className="text-xs text-gray-400 block mb-1">Duration (Minutes)</label>
-                    <input type="number" className="w-full bg-black border border-gray-700 rounded p-2 text-white" value={manualDelayMinutes} onChange={(e) => setManualDelayMinutes(e.target.value)} />
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={confirmManualDelay} className="flex-1 bg-status-warning text-black font-bold py-2 rounded">CONFIRM</button>
-                    <button onClick={() => setShowDelayInput(false)} className="px-4 py-2 border border-gray-700 rounded text-gray-400">BACK</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* --- TABS CONTENT --- */}
+      <main className="container mx-auto px-4 py-6 space-y-6">
 
         {activeTab === 'DASHBOARD' && (
-          <div className="grid grid-cols-12 gap-6 h-full">
-            <div className="col-span-3 bg-bg-panel border border-surface-border rounded-xl p-4 flex flex-col overflow-hidden">
-              <h3 className="text-xs font-mono text-gray-500 mb-4 tracking-widest">CREW_FATIGUE_STATE</h3>
-              <div className="overflow-y-auto space-y-4 flex-1 scrollbar-thin">
-                {pilots.map(p => (
-                  <FatigueGauge key={p._id} value={p.fatigue_score || 0} label={p.name} subLabel={`${p.base} | ${p.remainingDutyMinutes}m`} />
-                ))}
-              </div>
+          <>
+            {/* Top Metrics Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <KPICard
+                title="Active Flights"
+                value={flights.length}
+                icon={Plane}
+                colorString="bg-blue-500 text-blue-500"
+              />
+              <KPICard
+                title="Active Disruptions"
+                value={activeDisruptions}
+                icon={AlertTriangle}
+                colorString={activeDisruptions > 0 ? "bg-red-500 text-red-500" : "bg-gray-500 text-gray-500"}
+              />
+              <KPICard
+                title="Crew Fatigue Alerts"
+                value={pilots.filter(p => p.fatigue_score > 0.7).length}
+                icon={Users}
+                colorString="bg-orange-500 text-orange-500"
+              />
+              <KPICard
+                title="Human Decisions Today"
+                value={logs.filter(l => l.includes("MANUAL:") || l.includes("CO-PILOT:")).length}
+                icon={CheckCircle}
+                colorString="bg-green-500 text-green-500"
+              />
             </div>
 
-            <div className="col-span-9 flex flex-col gap-6 h-full overflow-hidden">
-              <div className="flex-[0.65] bg-bg-panel border border-surface-border rounded-xl p-4 overflow-hidden flex flex-col">
-                <FlightTable flights={flights} onRowClick={setSelectedFlight} />
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-220px)]">
+
+              {/* Left Column: Flight Status Board */}
+              <div className="lg:col-span-4 flex flex-col gap-4 overflow-hidden">
+                <Card className="h-full flex flex-col bg-card/50 border-border">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Plane className="w-4 h-4 text-primary" /> Flight Status Board
+                      {isCrisis && <Badge variant="destructive" className="ml-auto animate-pulse">LIVE INCIDENT</Badge>}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-1 overflow-hidden p-0">
+                    <div className="h-full overflow-y-auto pr-1">
+                      <FlightTable flights={flights} onRowClick={setSelectedFlight} simpleView={false} />
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-              <div className="flex-[0.35] bg-bg-panel border border-surface-border rounded-xl p-0 overflow-hidden flex flex-col">
-                <AgentLogs logs={logs} />
+
+              {/* Center Column: AI Recommendations (or default state) */}
+              <div className="lg:col-span-8 flex flex-col gap-4">
+
+                {/* Disruption Center Header / Context */}
+                <div className="flex items-center gap-4 text-sm text-muted-foreground pb-2 border-b border-border/50">
+                  <div className="flex items-center gap-1.5"><AlertTriangle className="w-4 h-4" /> Disruption Center</div>
+                  <div className="flex items-center gap-1.5"><Users className="w-4 h-4" /> Crew Fatigue</div>
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 gap-1 ml-auto">
+                    <Zap className="w-3 h-3" /> AI Recommendations {recommendation ? '1' : '0'}
+                  </Badge>
+                </div>
+
+                {/* Main AI Recommendation Card */}
+                <Card className={`flex-1 border-t-4 transition-all ${isCrisis ? 'border-t-destructive shadow-[0_0_20px_rgba(239,68,68,0.15)]' : 'border-t-primary'}`}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${isCrisis ? 'bg-destructive/20 text-destructive' : 'bg-primary/20 text-primary'}`}>
+                        <Zap className="w-6 h-6" />
+                      </div>
+                      <div>
+                        {isCrisis ? "AI Recommendations Generated" : "System Status: Nominal"}
+                        <CardDescription className="mt-1">
+                          {isCrisis ?
+                            "Analysis complete. 3 options generated for active disruption." :
+                            "Monitoring flight operations for anomalies."}
+                        </CardDescription>
+                      </div>
+                    </CardTitle>
+                  </CardHeader>
+
+                  <CardContent className="space-y-6">
+                    {isCrisis && recommendation ? (
+                      <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
+                        {/* Recommended Strategy Highlight */}
+                        <div className="rounded-xl border border-primary/30 bg-primary/5 p-6 relative overflow-hidden">
+                          <div className="absolute top-4 right-4 text-4xl font-black text-primary/10 select-none">RECOMMENDED</div>
+                          <div className="relative z-10">
+                            <div className="flex justify-between items-start mb-4">
+                              <div>
+                                <Badge variant="default" className="mb-2">Top Recommendation</Badge>
+                                <h3 className="text-xl font-bold">{recommendation.recommended_strategy.title}</h3>
+                                <p className="text-muted-foreground">{recommendation.recommended_strategy.description}</p>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-3xl font-bold text-primary">87</span>
+                                <div className="text-xs text-muted-foreground">Overall Score</div>
+                              </div>
+                            </div>
+
+                            {/* Metric Bars */}
+                            <div className="grid grid-cols-5 gap-4 mb-6">
+                              {['Safety', 'Fatigue', 'Passenger', 'Cost', 'Eco'].map((label, i) => (
+                                <div key={label} className="text-center">
+                                  <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden mb-1">
+                                    <div className="h-full bg-primary" style={{ width: `${[95, 92, 75, 60, 85][i]}%` }}></div>
+                                  </div>
+                                  <div className="text-[10px] uppercase font-bold text-muted-foreground">{label}</div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-3 pt-4 border-t border-border">
+                              <div className="flex-1 text-xs text-muted-foreground flex items-center">
+                                human_decision_req :: Review and approve
+                              </div>
+                              <Button variant="destructive" onClick={() => resolveCrisis({ action_type: 'DELAY_MANUAL', payload: { flight_id: recommendation.recommended_strategy.payload.flight_id } })}>Reject</Button>
+                              <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => resolveCrisis(recommendation.recommended_strategy)}>Approve Recommendation</Button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Alternative Options */}
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Alternative Strategies</h4>
+                          {options.filter(o => o.id !== recommendation.recommended_strategy.id).map(opt => (
+                            <div key={opt.id} className="flex items-center justify-between p-4 rounded-lg border border-border bg-card/50 hover:bg-card transition-colors cursor-pointer" onClick={() => resolveCrisis(opt)}>
+                              <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 rounded bg-secondary flex items-center justify-center text-muted-foreground font-bold">{options.indexOf(opt) + 1}</div>
+                                <div>
+                                  <div className="font-semibold text-sm">{opt.title}</div>
+                                  <div className="text-xs text-muted-foreground">{opt.description.substring(0, 60)}...</div>
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end">
+                                <span className="text-lg font-bold text-muted-foreground">61</span>
+                                <div className="h-1 w-16 bg-secondary rounded-full overflow-hidden">
+                                  <div className="h-full bg-muted-foreground" style={{ width: '61%' }}></div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                      </div>
+                    ) : (
+                      <div className="h-64 flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed border-border rounded-xl">
+                        <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center mb-4">
+                          <Activity className="w-8 h-8 opacity-50" />
+                        </div>
+                        <p>Usage metrics normal. No interventions required.</p>
+                        <div className="flex gap-2 mt-4 text-xs font-mono">
+                          <span>CPU: 12%</span>
+                          <span className="text-border">|</span>
+                          <span>MEM: 4.2GB</span>
+                          <span className="text-border">|</span>
+                          <span>LATENCY: 45ms</span>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
               </div>
+
+              {/* REMOVED RIGHT COLUMN - Industry 5.0 Principles as per user request */}
+
             </div>
-          </div>
+          </>
         )}
 
-        {activeTab === 'CREW' && (
-          <CrewManagement pilots={pilots} onRefresh={fetchData} />
-        )}
+        {/* --- OTHER TABS --- */}
+        {activeTab === 'CREW' && <CrewManagement pilots={pilots} onRefresh={fetchData} />}
 
         {activeTab === 'SIMULATION' && (
-          <div className="flex items-center justify-center h-full">
-            <div className="w-full max-w-2xl bg-bg-panel border border-surface-border rounded-xl p-8 shadow-2xl">
-              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                <span className="text-accent">⚡</span> INJECTION CONTROL
-              </h2>
-
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-xs font-mono text-gray-500 mb-2">DISRUPTION_TYPE</label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {['WEATHER', 'TECHNICAL', 'ATC', 'CREW'].map(t => (
-                      <button
-                        key={t}
-                        onClick={() => setSimType(t)}
-                        className={`p-3 border rounded-lg text-xs font-bold transition-all ${simType === t ? 'border-accent bg-accent/20 text-white' : 'border-surface-border bg-surface text-gray-500 hover:border-gray-600'}`}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
+          <div className="max-w-3xl mx-auto py-12">
+            <Card>
+              <CardHeader><CardTitle className="text-2xl text-center">Simulation Injection</CardTitle></CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-4 gap-4">
+                  {['WEATHER', 'TECHNICAL', 'ATC', 'CREW'].map(t => (
+                    <Button key={t} variant={simType === t ? 'default' : 'outline'} className="h-20 flex flex-col gap-2" onClick={() => setSimType(t)}>
+                      {t === 'WEATHER' && <Wind />}
+                      {t === 'TECHNICAL' && <Cpu />}
+                      {t === 'ATC' && <Radio />}
+                      {t === 'CREW' && <Users />}
+                      {t}
+                    </Button>
+                  ))}
                 </div>
 
-                <div>
-                  <label className="block text-xs font-mono text-gray-500 mb-2">CONDITION</label>
-                  <select
-                    className="w-full p-3 bg-gray-900 border border-surface-border rounded text-white font-mono focus:border-accent outline-none"
-                    value={simSubType}
-                    onChange={(e) => setSimSubType(e.target.value)}
-                  >
-                    {simType === 'WEATHER' && (
-                      <>
-                        <option className="bg-gray-900 text-white" value="Fog">Heavy Fog (Vis &lt; 50m)</option>
-                        <option className="bg-gray-900 text-white" value="Thunderstorm">Severe Thunderstorm</option>
-                        <option className="bg-gray-900 text-white" value="Cyclone">Cyclone Warning</option>
-                      </>
-                    )}
-                    {simType === 'TECHNICAL' && <option className="bg-gray-900 text-white" value="Technical">Hydraulic Failure</option>}
-                    {simType === 'ATC' && <option className="bg-gray-900 text-white" value="ATC">Airspace Closure</option>}
-                    {simType === 'CREW' && <option className="bg-gray-900 text-white" value="Sickness">Pilot Incapacitated (Sickness)</option>}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Scenario</label>
+                  <select className="w-full p-2 rounded-md bg-background border border-border" value={simSubType} onChange={e => setSimSubType(e.target.value)}>
+                    {simType === 'WEATHER' && <option value="Fog">Heavy Fog</option>}
+                    {simType === 'TECHNICAL' && <option value="Technical">Hydraulic Failure</option>}
+                    <option value="Generic">Generic Delay</option>
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-mono text-gray-500 mb-2">TARGET_FLIGHT</label>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Target Flight</label>
                   <select
-                    className="w-full p-3 bg-gray-900 border border-surface-border rounded text-white font-mono focus:border-accent outline-none"
+                    className="w-full p-2 rounded-md bg-background border border-border"
                     value={targetFlight}
-                    onChange={(e) => setTargetFlight(e.target.value)}
+                    onChange={e => setTargetFlight(e.target.value)}
                   >
-                    <option className="bg-gray-900 text-white" value="">ALL FLIGHTS @ ORIGIN</option>
+                    <option value="">ALL FLIGHTS @ ORIGIN</option>
                     {flights.map(f => (
-                      <option className="bg-gray-900 text-white" key={f._id} value={f._id}>{f.flightNumber} ({f.origin} -&gt; {f.destination})</option>
+                      <option key={f._id} value={f._id}>{f.flightNumber} ({f.origin} -&gt; {f.destination})</option>
                     ))}
                   </select>
                 </div>
 
-                <button
-                  onClick={runSim}
-                  className="w-full py-4 bg-status-danger hover:bg-red-600 text-white font-bold tracking-widest rounded transition-all shadow-lg active:scale-95"
-                >
-                  EXECUTE INJECTION
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'ANALYSIS' && (
-          <div className="grid grid-cols-2 gap-6 h-full">
-            <div className="bg-bg-panel border border-surface-border rounded-xl p-6">
-              <h3 className="text-sm font-bold text-white mb-6">PREDICTED RISK VS FATIGUE</h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={analyticsData}>
-                    <XAxis dataKey="name" stroke="#4b5563" fontSize={10} />
-                    <YAxis stroke="#4b5563" fontSize={10} />
-                    <Tooltip contentStyle={{ backgroundColor: '#000', border: '1px solid #333' }} />
-                    <Line type="monotone" dataKey="risk" stroke="#ef4444" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="fatigue" stroke="#10b981" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-            <div className="bg-bg-panel border border-surface-border rounded-xl p-6">
-              <h3 className="text-sm font-bold text-white mb-4">🌱 GREEN OPERATIONS IMPACT (Industry 5.0)</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-surface p-4 rounded text-center border border-green-900/50">
-                  <div className="text-3xl font-bold text-green-400">1,240 <span className="text-xs text-gray-500">kg</span></div>
-                  <div className="text-xs text-gray-400 mt-1">CO2 EMISSIONS PREVENTED</div>
-                </div>
-                <div className="bg-surface p-4 rounded text-center border border-green-900/50">
-                  <div className="text-3xl font-bold text-green-400">480 <span className="text-xs text-gray-500">L</span></div>
-                  <div className="text-xs text-gray-400 mt-1">AVIATION FUEL SAVED</div>
-                </div>
-                <div className="bg-surface p-4 rounded text-center col-span-2 flex items-center justify-between px-8">
-                  <div className="text-left">
-                    <div className="text-xl font-bold text-white">94%</div>
-                    <div className="text-[10px] text-gray-500">ECO-OPTIMIZED RESOLUTIONS</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xl font-bold text-white">12.5h</div>
-                    <div className="text-[10px] text-gray-500">IDLE ENGINE TIME AVOIDED</div>
-                  </div>
-                </div>
-              </div>
-            </div>
+                <Button size="lg" className="w-full text-lg" variant="destructive" onClick={runSim}>
+                  INJECT FAULT
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         )}
 
       </main>
 
+      {/* Modals & Overlays */}
       <FlightDetailModal flight={selectedFlight} pilots={pilots} onClose={() => setSelectedFlight(null)} />
+
+      {showDelayInput && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <Card className="w-full max-w-md border-orange-500">
+            <CardHeader>
+              <CardTitle className="text-orange-500">Manual Delay Override</CardTitle>
+              <CardDescription>Enter the manual delay duration in minutes.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <input
+                type="number"
+                className="w-full p-3 bg-secondary rounded border border-border text-2xl font-mono text-center"
+                value={manualDelayMinutes}
+                onChange={e => setManualDelayMinutes(e.target.value)}
+                autoFocus
+              />
+            </CardContent>
+            <CardFooter className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setShowDelayInput(false)}>Cancel</Button>
+              <Button variant="default" className="bg-orange-500 hover:bg-orange-600" onClick={confirmManualDelay}>Confirm Delay</Button>
+            </CardFooter>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
 
-function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<UnifiedDashboard />} />
-        <Route path="/passenger" element={<PassengerBridge />} />
-        <Route path="/crew" element={<CrewManagement />} />
-      </Routes>
-    </BrowserRouter>
-  );
-}
+const App = () => (
+  <BrowserRouter>
+    <Routes>
+      <Route path="/" element={<UnifiedDashboard />} />
+      <Route path="/passenger" element={<PassengerBridge />} />
+      <Route path="/crew" element={<CrewManagement />} />
+    </Routes>
+  </BrowserRouter>
+);
 
 export default App;

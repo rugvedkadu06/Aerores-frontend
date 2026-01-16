@@ -1,5 +1,6 @@
-
 import React from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 const PassengerOptions = ({ onSelect }) => {
     const options = [
@@ -32,15 +33,17 @@ const PassengerOptions = ({ onSelect }) => {
     return (
         <div className="grid grid-cols-2 gap-3">
             {options.map((opt) => (
-                <button
+                <Card
                     key={opt.id}
                     onClick={() => onSelect(opt.id)}
-                    className="bg-surface hover:bg-surface-border border border-surface-border rounded-lg p-4 text-left transition-all hover:scale-[1.02] group"
+                    className="cursor-pointer hover:bg-muted/50 transition-all hover:scale-[1.02] hover:shadow-md border-primary/10 group"
                 >
-                    <div className="text-2xl mb-2 group-hover:scale-110 transition-transform origin-left">{opt.icon}</div>
-                    <div className="font-bold text-white text-xs mb-0.5">{opt.title}</div>
-                    <div className="text-[10px] text-gray-500">{opt.subtitle}</div>
-                </button>
+                    <CardContent className="p-4">
+                        <div className="text-2xl mb-2 group-hover:scale-110 transition-transform origin-left">{opt.icon}</div>
+                        <div className="font-bold text-foreground text-xs mb-0.5">{opt.title}</div>
+                        <div className="text-[10px] text-muted-foreground">{opt.subtitle}</div>
+                    </CardContent>
+                </Card>
             ))}
         </div>
     );

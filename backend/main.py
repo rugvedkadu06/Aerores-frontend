@@ -34,7 +34,7 @@ def send_delay_email(flight_number, origin, dest, delay_minutes, reason):
     # Credentials (preserved)
     sender_email = os.getenv("EMAIL_USER")
     sender_password = os.getenv("EMAIL_PASS")
-    receiver_email = "animeshtajne776@gmail.com"
+    receiver_email = "bisen.m2006@gmail.com"
     
     if not sender_email or not sender_password:
         return False
@@ -470,6 +470,27 @@ async def heal(req: HealRequest):
                 "payload": {"flight_id": flight["_id"], "minutes": 45},
                 "reasoning": "Repair is viable but carries risk of further delay."
             })
+        elif "ATC" in reason:
+             options.append({
+                "id": "OPT_DELAY_ATC",
+                "title": "Wait for Slot (90m)",
+                "description": "Ground hold until ATC clearance.",
+                "action_type": "DELAY_APPLY",
+                "risk_level": "LOW",
+                "payload": {"flight_id": flight["_id"], "minutes": 90},
+                "reasoning": "Compliance with ATC mandate is mandatory."
+            })
+            
+        # ALWAYS ADD CANCEL OPTION
+        options.append({
+            "id": "OPT_CANCEL",
+            "title": "Cancel Flight",
+            "description": "Cease operations for this flight.",
+            "action_type": "CANCEL",
+            "risk_level": "HIGH",
+            "payload": {"flight_id": flight["_id"]},
+            "reasoning": "Last resort to prevent cascading failures."
+        })
 
     # --- CO-PILOT SELECTION LOGIC ---
     best_option = None

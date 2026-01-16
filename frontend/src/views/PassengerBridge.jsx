@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+
+// Sub-components (Assuming they are being refactored next, passing props safely)
 import Timeline from '../components/passenger/Timeline';
 import VoucherCard from '../components/passenger/VoucherCard';
 import RebookingOptions from '../components/passenger/RebookingOptions';
@@ -149,80 +156,86 @@ const PassengerBridge = () => {
     ];
 
     return (
-        <div className="bg-bg-void text-white font-sans selection:bg-accent selection:text-bg-void pb-20">
+        <div className="min-h-screen bg-background text-foreground font-sans">
 
             {/* --- TOP BAR --- */}
-            <header className="sticky top-0 z-50 bg-bg-void/95 backdrop-blur-md border-b border-surface-border px-6 py-4 flex justify-between items-center shadow-lg">
+            <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border px-6 py-4 flex justify-between items-center shadow-sm">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-accent rounded-lg flex items-center justify-center font-bold text-black text-2xl">A</div>
+                    <div className="w-10 h-10 bg-primary/20 text-primary rounded-lg flex items-center justify-center font-bold text-2xl">A</div>
                     <div>
-                        <h1 className="font-bold text-lg tracking-widest text-white">SKY<span className="text-accent">COPILOT</span></h1>
-                        <p className="text-xs text-gray-500 tracking-wider">PASSENGER ASSISTANCE DASHBOARD</p>
+                        <h1 className="font-bold text-lg tracking-widest text-primary">SKY<span className="text-foreground">COPILOT</span></h1>
+                        <p className="text-xs text-muted-foreground tracking-wider">PASSENGER ASSISTANCE DASHBOARD</p>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-4">
                     {flightData && (
-                        <div className="hidden md:block text-right mr-4 border-r border-gray-700 pr-4">
-                            <h2 className="font-bold text-white text-sm">{flightData.flight_number}</h2>
-                            <div className="text-xs text-gray-400 font-mono">{flightData.origin} ➔ {flightData.destination}</div>
+                        <div className="hidden md:block text-right mr-4 border-r border-border pr-4">
+                            <h2 className="font-bold text-sm">{flightData.flight_number}</h2>
+                            <div className="text-xs text-muted-foreground font-mono">{flightData.origin} ➔ {flightData.destination}</div>
                         </div>
                     )}
-                    <div className="flex gap-1 bg-surface p-1 rounded-lg border border-surface-border">
+                    <div className="flex gap-1">
                         {['en', 'hi', 'ta', 'bn'].map(l => (
-                            <button
+                            <Button
                                 key={l}
+                                variant={lang === l ? "default" : "ghost"}
+                                size="sm"
                                 onClick={() => setLang(l)}
-                                className={`text-xs font-bold px-3 py-1.5 rounded transition-colors ${lang === l ? 'bg-accent text-bg-void' : 'text-gray-400 hover:text-white'}`}
+                                className="h-8 w-10 text-xs font-bold uppercase"
                             >
-                                {l.toUpperCase()}
-                            </button>
+                                {l}
+                            </Button>
                         ))}
                     </div>
                 </div>
             </header>
 
             {/* --- MAIN CONTENT --- */}
-            <main className="w-full max-w-[1600px] mx-auto p-6 md:p-8 animate-fadeIn">
+            <main className="w-full max-w-7xl mx-auto p-4 md:p-8 animate-in fade-in zoom-in-95 duration-500">
 
                 {/* LOGIN / SEARCH - Centered if no data */}
                 {!flightData && (
-                    <div className="flex flex-col items-center justify-center h-[70vh]">
-                        <div className="w-full max-w-lg bg-surface p-8 rounded-2xl border border-surface-border shadow-2xl relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-full h-1 bg-accent"></div>
-                            <div className="text-center mb-8">
-                                <h2 className="text-2xl font-bold text-white mb-2">{t.title}</h2>
-                                <p className="text-gray-400">{t.subtitle}</p>
-                            </div>
-
-                            <label className="text-xs text-mono text-gray-400 mb-2 block uppercase tracking-widest">Flight Details</label>
-                            <div className="flex gap-2 mb-6">
-                                <input
-                                    type="text"
-                                    value={flightId}
-                                    onChange={(e) => setFlightId(e.target.value)}
-                                    placeholder={t.login_placeholder}
-                                    className="flex-1 bg-black/40 border border-gray-700 rounded-lg p-4 text-sm font-mono text-white focus:border-accent outline-none transition-all"
-                                />
-                                <button
-                                    onClick={handleSearch}
-                                    disabled={loading}
-                                    className="bg-accent hover:bg-white text-black font-bold px-8 rounded-lg tracking-widest transition-all active:scale-95 disabled:opacity-50"
-                                >
-                                    {loading ? "..." : "➔"}
-                                </button>
-                            </div>
-
-                            {error && <div className="p-3 bg-red-900/30 border border-red-900 text-status-danger text-sm rounded mb-4 text-center">{error}</div>}
-
-                            <div className="border-t border-gray-800 pt-4 text-center">
-                                <p className="text-xs text-gray-600 mb-2">DEMO IDS</p>
-                                <div className="flex gap-3 justify-center">
-                                    <span className="bg-gray-800 hover:bg-gray-700 text-gray-400 px-3 py-1 rounded text-xs font-mono cursor-pointer transition-colors" onClick={() => setFlightId('FLY1001')}>FLY1001</span>
-                                    <span className="bg-gray-800 hover:bg-gray-700 text-gray-400 px-3 py-1 rounded text-xs font-mono cursor-pointer transition-colors" onClick={() => setFlightId('FLY1002')}>FLY1002</span>
+                    <div className="flex flex-col items-center justify-center min-h-[60vh]">
+                        <Card className="w-full max-w-lg shadow-2xl border-primary/20 relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-primary"></div>
+                            <CardHeader className="text-center pb-2">
+                                <CardTitle className="text-2xl font-bold mb-2">{t.title}</CardTitle>
+                                <p className="text-muted-foreground">{t.subtitle}</p>
+                            </CardHeader>
+                            <CardContent className="space-y-4 pt-4">
+                                <div>
+                                    <label className="text-xs font-mono text-muted-foreground mb-2 block uppercase tracking-widest">Flight Details</label>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            type="text"
+                                            value={flightId}
+                                            onChange={(e) => setFlightId(e.target.value)}
+                                            placeholder={t.login_placeholder}
+                                            className="font-mono text-lg"
+                                        />
+                                        <Button
+                                            onClick={handleSearch}
+                                            disabled={loading}
+                                            size="lg"
+                                            className="font-bold tracking-widest"
+                                        >
+                                            {loading ? "..." : "➔"}
+                                        </Button>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
+
+                                {error && <div className="p-3 bg-destructive/10 border border-destructive/50 text-destructive text-sm rounded font-medium text-center">{error}</div>}
+
+                                <div className="border-t border-border pt-4 text-center">
+                                    <p className="text-xs text-muted-foreground mb-2">DEMO FLIGHTS</p>
+                                    <div className="flex gap-3 justify-center">
+                                        <Badge variant="outline" className="cursor-pointer hover:bg-accent" onClick={() => setFlightId('FLY1001')}>FLY1001</Badge>
+                                        <Badge variant="outline" className="cursor-pointer hover:bg-accent" onClick={() => setFlightId('FLY1002')}>FLY1002</Badge>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
                     </div>
                 )}
 
@@ -236,35 +249,40 @@ const PassengerBridge = () => {
                             <FlightStatusCard data={flightData} t={t} />
 
                             {/* Timeline Section */}
-                            <div className="bg-surface border border-surface-border rounded-xl p-8 shadow-lg">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h3 className="text-lg font-bold text-gray-300 uppercase tracking-wider">{t.timeline}</h3>
-                                    <div className="text-xs font-mono text-accent animate-pulse">● LIVE UPDATES ACTIVE</div>
-                                </div>
-                                <Timeline events={flightData.timeline} language={lang} />
-                            </div>
+                            <Card className="shadow-lg">
+                                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                    <CardTitle className="text-lg font-bold uppercase tracking-wider">{t.timeline}</CardTitle>
+                                    <Badge variant="outline" className="text-primary border-primary animate-pulse">● LIVE UPDATES</Badge>
+                                </CardHeader>
+                                <CardContent>
+                                    <Timeline events={flightData.timeline} language={lang} />
+                                </CardContent>
+                            </Card>
 
-                            {/* Compensation & Rights (Now inline on left for better reading flow) */}
+                            {/* Compensation & Rights */}
                             {flightData.rights.length > 0 && (
-                                <div className="bg-surface border border-surface-border rounded-xl p-8 shadow-lg">
-                                    <div className="flex items-center gap-3 mb-6 border-b border-gray-800 pb-4">
-                                        <span className="text-2xl">⚖️</span>
-                                        <div>
-                                            <h3 className="text-lg font-bold text-white uppercase tracking-wider">{t.compensation}</h3>
-                                            <p className="text-xs text-gray-400">{t.rights_info}</p>
+                                <Card className="shadow-lg border-primary/20">
+                                    <CardHeader className="border-b border-border pb-4 mb-4">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-2xl">⚖️</span>
+                                            <div>
+                                                <CardTitle className="text-lg uppercase tracking-wider">{t.compensation}</CardTitle>
+                                                <p className="text-xs text-muted-foreground">{t.rights_info}</p>
+                                            </div>
                                         </div>
-                                    </div>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <RightsCard rights={flightData.rights} t={t} />
 
-                                    <RightsCard rights={flightData.rights} t={t} />
-
-                                    {flightData.vouchers.length > 0 && (
-                                        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            {flightData.vouchers.map((v, i) => (
-                                                <VoucherCard key={i} {...v} />
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
+                                        {flightData.vouchers.length > 0 && (
+                                            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {flightData.vouchers.map((v, i) => (
+                                                    <VoucherCard key={i} {...v} />
+                                                ))}
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
                             )}
                         </div>
 
@@ -272,53 +290,60 @@ const PassengerBridge = () => {
                         <div className="lg:col-span-4 space-y-6 sticky top-24">
 
                             {/* Action Menu */}
-                            <div className="bg-surface border border-surface-border rounded-xl p-6 shadow-lg">
-                                <h3 className="text-sm font-bold text-gray-400 mb-4 uppercase tracking-wider border-b border-gray-800 pb-2">{t.options}</h3>
-                                {!showRebook ? (
-                                    <div className="flex flex-col gap-3">
-                                        <PassengerOptions onSelect={handleOptionSelect} />
-                                    </div>
-                                ) : (
-                                    <div className="animate-slideDown">
-                                        <button onClick={() => setShowRebook(false)} className="text-xs text-gray-400 mb-3 hover:text-white flex items-center gap-1">← BACK</button>
-                                        <RebookingOptions options={rebookOptions} onSelect={(opt) => alert(`Mock: Rebooked on ${opt.flightNo}`)} />
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Embedded Chat Widget (Always visible on desktop) */}
-                            <div className="bg-bg-panel border border-surface-border rounded-xl shadow-2xl flex flex-col h-[500px] overflow-hidden">
-                                <div className="bg-accent/10 p-4 border-b border-surface-border flex justify-between items-center">
-                                    <div className="flex items-center gap-2">
-                                        <span className="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
-                                        <h3 className="font-bold text-accent text-sm">SKYCOPILOT AI</h3>
-                                    </div>
-                                    <span className="text-[10px] uppercase font-mono text-gray-500">Online</span>
-                                </div>
-
-                                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-black/40 scrollbar-thin">
-                                    {chatHistory.map((c, i) => (
-                                        <div key={i} className={`flex ${c.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                            <div className={`max-w-[85%] text-sm p-3 rounded-lg shadow-sm ${c.sender === 'user' ? 'bg-accent text-black rounded-tr-none' : 'bg-gray-800 text-gray-200 rounded-tl-none border border-gray-700'}`}>
-                                                {c.text}
-                                            </div>
+                            <Card className="shadow-lg">
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-wider">{t.options}</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    {!showRebook ? (
+                                        <div className="flex flex-col gap-3">
+                                            <PassengerOptions onSelect={handleOptionSelect} />
                                         </div>
-                                    ))}
+                                    ) : (
+                                        <div className="animate-in slide-in-from-right-4">
+                                            <Button variant="ghost" size="sm" onClick={() => setShowRebook(false)} className="mb-2 -ml-2 text-muted-foreground">
+                                                ← BACK
+                                            </Button>
+                                            <RebookingOptions options={rebookOptions} onSelect={(opt) => alert(`Mock: Rebooked on ${opt.flightNo}`)} />
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            {/* Embedded Chat Widget */}
+                            <Card className="shadow-xl flex flex-col h-[500px] overflow-hidden border-primary/20">
+                                <div className="bg-primary/10 p-4 border-b border-border flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                                        <h3 className="font-bold text-primary text-sm">SKYCOPILOT AI</h3>
+                                    </div>
+                                    <span className="text-[10px] uppercase font-mono text-muted-foreground">Online</span>
                                 </div>
 
-                                <div className="p-3 border-t border-surface-border bg-surface flex gap-2">
-                                    <input
-                                        className="flex-1 bg-black border border-gray-700 rounded-lg p-3 text-sm text-white focus:border-accent outline-none"
+                                <ScrollArea className="flex-1 p-4 bg-muted/20">
+                                    <div className="space-y-4">
+                                        {chatHistory.map((c, i) => (
+                                            <div key={i} className={`flex ${c.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                                <div className={`max-w-[85%] text-sm p-3 rounded-lg shadow-sm ${c.sender === 'user' ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-card border border-border text-card-foreground rounded-tl-none'}`}>
+                                                    {c.text}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </ScrollArea>
+
+                                <div className="p-3 border-t border-border bg-card flex gap-2">
+                                    <Input
+                                        className="flex-1"
                                         placeholder={t.chat_placeholder}
                                         value={chatMsg}
                                         onChange={e => setChatMsg(e.target.value)}
                                         onKeyDown={e => e.key === 'Enter' && sendChat()}
                                     />
-                                    <button onClick={sendChat} className="bg-accent hover:bg-white text-black p-3 rounded-lg font-bold transition-colors">➤</button>
+                                    <Button onClick={sendChat} size="icon">➤</Button>
                                 </div>
-                            </div>
+                            </Card>
 
-                            {/* Feedback - Mini version */}
                             <FeedbackWidget flightId={flightData.flight_id} />
 
                         </div>
