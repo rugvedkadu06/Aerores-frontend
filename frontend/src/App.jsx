@@ -29,7 +29,7 @@ import FlightDetailModal from './components/FlightDetailModal';
 import PassengerBridge from './views/PassengerBridge';
 import CrewManagement from './views/CrewManagement';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = 'https://aerores-frontend.onrender.com';
 
 // --- HELPER COMPONENTS ---
 
