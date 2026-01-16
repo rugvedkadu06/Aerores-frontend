@@ -29,7 +29,7 @@ import FlightDetailModal from './components/FlightDetailModal';
 import PassengerBridge from './views/PassengerBridge';
 import CrewManagement from './views/CrewManagement';
 
-const API_URL = 'https://aerores-frontend.onrender.com';
+const API_URL = 'aerores-frontend-evxss6zrw-rugvedkadu06s-projects.vercel.app';
 
 // --- HELPER COMPONENTS ---
 
