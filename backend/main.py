@@ -40,7 +40,7 @@ def send_delay_email(flight_number, origin, dest, delay_minutes, reason):
     # Credentials (preserved)
     sender_email = os.getenv("EMAIL_USER")
     sender_password = os.getenv("EMAIL_PASS")
-    receiver_email = "bisen.m2006@gmail.com"
+    receiver_email = "demog6892@gmail.com"
     
     if not sender_email or not sender_password:
         return False

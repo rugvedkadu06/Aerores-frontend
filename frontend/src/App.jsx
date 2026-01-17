@@ -30,7 +30,9 @@ import AgentLogs from './components/AgentLogs';
 import FlightDetailModal from './components/FlightDetailModal';
 import PassengerBridge from './views/PassengerBridge';
 import CrewManagement from './views/CrewManagement';
+
 import AnalyticsDashboard from './views/AnalyticsDashboard';
+import FlightMap from './views/FlightMap';
 
 const API_URL = 'http://localhost:8000';
 
@@ -85,7 +87,7 @@ const UnifiedDashboard = () => {
   // Voice State
   const [isListening, setIsListening] = useState(false);
   const [voiceFilter, setVoiceFilter] = useState(null); // 'DELAYED', 'CRITICAL', 'ALL' or null
-
+  const [sortType, setSortType] = useState('FLIGHT_NUM'); // 'TIME', 'STATUS', 'FLIGHT_NUM'
   const recognitionRef = React.useRef(null);
 
   useEffect(() => {
@@ -240,6 +242,19 @@ const UnifiedDashboard = () => {
     if (voiceFilter === 'SWAPPED') return f.status === 'SWAPPED';
     if (voiceFilter === 'ON_TIME') return f.status === 'ON_TIME';
     return true;
+  }).sort((a, b) => {
+    if (sortType === 'STATUS') {
+      const priority = { 'CRITICAL': 0, 'DELAYED': 1, 'WARNING': 2, 'ON_TIME': 3, 'CANCELLED': 4 };
+      return (priority[a.status] ?? 99) - (priority[b.status] ?? 99);
+    }
+    if (sortType === 'FLIGHT_NUM') {
+      const numA = a.flightNumber.replace(/\D/g, '');
+      const numB = b.flightNumber.replace(/\D/g, '');
+      return numA - numB;
+    }
+    // Default: 'TIME' (using scheduledDeparture or just index implicit)
+    // Assuming date objects or strings. API returns ISO strings usually.
+    return new Date(a.scheduledDeparture) - new Date(b.scheduledDeparture);
   });
 
   const activeDisruptions = flights.filter(f => f.status === 'DELAYED' || f.status === 'CANCELLED').length + (isCrisis ? 1 : 0);
@@ -263,6 +278,7 @@ const UnifiedDashboard = () => {
               <Button variant={activeTab === 'DASHBOARD' ? "secondary" : "ghost"} size="sm" onClick={() => setActiveTab('DASHBOARD')}>DASHBOARD</Button>
               <Button variant={activeTab === 'CREW' ? "secondary" : "ghost"} size="sm" onClick={() => setActiveTab('CREW')}>CREW</Button>
               <Button variant={activeTab === 'ANALYTICS' ? "secondary" : "ghost"} size="sm" onClick={() => setActiveTab('ANALYTICS')}>ANALYTICS</Button>
+              <Button variant={activeTab === 'MAP' ? "secondary" : "ghost"} size="sm" onClick={() => setActiveTab('MAP')}>MAP</Button>
               <Button variant={activeTab === 'SIMULATION' ? "secondary" : "ghost"} size="sm" onClick={() => setActiveTab('SIMULATION')}>SIMULATION</Button>
             </nav>
           </div>
@@ -273,30 +289,9 @@ const UnifiedDashboard = () => {
                 Passenger Bridge <Users className="w-4 h-4" />
               </Button>
             </Link>
-            <div className="flex items-center bg-secondary rounded-md p-1">
-              <Button
-                variant={mode === 'AUTO' ? 'default' : 'ghost'}
-                size="xs"
-                className="h-7 text-xs px-2"
-                onClick={() => setMode('AUTO')}
-              >AUTO</Button>
-              <Button
-                variant={mode === 'MANUAL' ? 'destructive' : 'ghost'}
-                size="xs"
-                className="h-7 text-xs px-2"
-                onClick={() => setMode('MANUAL')}
-              >MANUAL</Button>
-            </div>
 
-            <Button
-              variant={isListening ? "destructive" : "outline"}
-              size="icon"
-              className={`transition-all ${isListening ? 'animate-pulse' : ''}`}
-              onClick={toggleListening}
-              title={isListening ? "Stop Voice Mode" : "Start Always-On Voice"}
-            >
-              {isListening ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4 text-muted-foreground" />}
-            </Button>
+
+
 
             <Button variant="outline" size="icon" onClick={fetchData} title="Refresh Data">
               <RotateCw className="w-4 h-4" />
@@ -343,23 +338,43 @@ const UnifiedDashboard = () => {
               {/* Left Column: Flight Status Board */}
               <div className="lg:col-span-4 flex flex-col gap-4 overflow-hidden">
                 <Card className="h-full flex flex-col bg-card/50 border-border">
-                  <CardHeader className="pb-2">
+                  <CardHeader className="pb-2 space-y-2">
                     <CardTitle className="text-lg flex items-center gap-2">
                       <Plane className="w-4 h-4 text-primary" /> Flight Status Board
                       {isCrisis && <Badge variant="destructive" className="ml-auto animate-pulse">LIVE INCIDENT</Badge>}
                     </CardTitle>
+                    <div className="flex gap-2">
+                      <select
+                        className="bg-background border border-border rounded text-xs p-1 flex-1"
+                        value={voiceFilter || ''}
+                        onChange={(e) => setVoiceFilter(e.target.value || null)}
+                      >
+                        <option value="">Filter: All</option>
+                        <option value="DELAYED">Delayed</option>
+                        <option value="CRITICAL">Critical</option>
+                        <option value="CANCELLED">Cancelled</option>
+                        <option value="ON_TIME">On Time</option>
+                      </select>
+                      <select
+                        className="bg-background border border-border rounded text-xs p-1 flex-1"
+                        value={sortType}
+                        onChange={(e) => setSortType(e.target.value)}
+                      >
+                        <option value="TIME">Sort: Time</option>
+                        <option value="STATUS">Sort: Priority</option>
+                        <option value="FLIGHT_NUM">Sort: Flight #</option>
+                      </select>
+                    </div>
                   </CardHeader>
                   <CardContent className="flex-1 overflow-hidden p-0">
                     <div className="h-full overflow-y-auto pr-1">
-                      <div className="h-full overflow-y-auto pr-1">
-                        {voiceFilter && (
-                          <div className="p-2 bg-primary/10 text-xs font-bold text-primary flex justify-between items-center">
-                            <span>🎤 Filter: {voiceFilter}</span>
-                            <button onClick={() => setVoiceFilter(null)} className="hover:underline">Clear</button>
-                          </div>
-                        )}
-                        <FlightTable flights={displayedFlights} onRowClick={setSelectedFlight} simpleView={false} />
-                      </div>
+                      {voiceFilter && (
+                        <div className="p-2 bg-primary/10 text-xs font-bold text-primary flex justify-between items-center mb-2 rounded">
+                          <span>🔍 Active Filter: {voiceFilter}</span>
+                          <button onClick={() => setVoiceFilter(null)} className="hover:underline">Clear</button>
+                        </div>
+                      )}
+                      <FlightTable flights={displayedFlights} onRowClick={setSelectedFlight} simpleView={false} />
                     </div>
                   </CardContent>
                 </Card>
@@ -489,7 +504,7 @@ const UnifiedDashboard = () => {
 
               {/* REMOVED RIGHT COLUMN - Industry 5.0 Principles as per user request */}
 
-            </div>
+            </div >
           </>
         )}
 
@@ -497,83 +512,95 @@ const UnifiedDashboard = () => {
         {activeTab === 'ANALYTICS' && <AnalyticsDashboard />}
         {activeTab === 'CREW' && <CrewManagement pilots={pilots} onRefresh={fetchData} />}
 
-        {activeTab === 'SIMULATION' && (
-          <div className="max-w-3xl mx-auto py-12">
-            <Card>
-              <CardHeader><CardTitle className="text-2xl text-center">Simulation Injection</CardTitle></CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-4 gap-4">
-                  {['WEATHER', 'TECHNICAL', 'ATC', 'CREW'].map(t => (
-                    <Button key={t} variant={simType === t ? 'default' : 'outline'} className="h-20 flex flex-col gap-2" onClick={() => setSimType(t)}>
-                      {t === 'WEATHER' && <Wind />}
-                      {t === 'TECHNICAL' && <Cpu />}
-                      {t === 'ATC' && <Radio />}
-                      {t === 'CREW' && <Users />}
-                      {t}
-                    </Button>
-                  ))}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Scenario</label>
-                  <select className="w-full p-2 rounded-md bg-background border border-border" value={simSubType} onChange={e => setSimSubType(e.target.value)}>
-                    {simType === 'WEATHER' && <option value="Fog">Heavy Fog</option>}
-                    {simType === 'TECHNICAL' && <option value="Technical">Hydraulic Failure</option>}
-                    <option value="Generic">Generic Delay</option>
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Target Flight</label>
-                  <select
-                    className="w-full p-2 rounded-md bg-background border border-border"
-                    value={targetFlight}
-                    onChange={e => setTargetFlight(e.target.value)}
-                  >
-                    <option value="">ALL FLIGHTS @ ORIGIN</option>
-                    {flights.map(f => (
-                      <option key={f._id} value={f._id}>{f.flightNumber} ({f.origin} -&gt; {f.destination})</option>
+        {
+          activeTab === 'SIMULATION' && (
+            <div className="max-w-3xl mx-auto py-12">
+              <Card>
+                <CardHeader><CardTitle className="text-2xl text-center">Simulation Injection</CardTitle></CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-4 gap-4">
+                    {['WEATHER', 'TECHNICAL', 'ATC', 'CREW'].map(t => (
+                      <Button key={t} variant={simType === t ? 'default' : 'outline'} className="h-20 flex flex-col gap-2" onClick={() => setSimType(t)}>
+                        {t === 'WEATHER' && <Wind />}
+                        {t === 'TECHNICAL' && <Cpu />}
+                        {t === 'ATC' && <Radio />}
+                        {t === 'CREW' && <Users />}
+                        {t}
+                      </Button>
                     ))}
-                  </select>
-                </div>
+                  </div>
 
-                <Button size="lg" className="w-full text-lg" variant="destructive" onClick={runSim}>
-                  INJECT FAULT
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Scenario</label>
+                    <select className="w-full p-2 rounded-md bg-background border border-border" value={simSubType} onChange={e => setSimSubType(e.target.value)}>
+                      {simType === 'WEATHER' && <option value="Fog">Heavy Fog</option>}
+                      {simType === 'TECHNICAL' && <option value="Technical">Hydraulic Failure</option>}
+                      <option value="Generic">Generic Delay</option>
+                    </select>
+                  </div>
 
-      </main>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Target Flight</label>
+                    <select
+                      className="w-full p-2 rounded-md bg-background border border-border"
+                      value={targetFlight}
+                      onChange={e => setTargetFlight(e.target.value)}
+                    >
+                      <option value="">ALL FLIGHTS @ ORIGIN</option>
+                      {flights.map(f => (
+                        <option key={f._id} value={f._id}>{f.flightNumber} ({f.origin} -&gt; {f.destination})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <Button size="lg" className="w-full text-lg" variant="destructive" onClick={runSim}>
+                    INJECT FAULT
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          )
+        }
+
+        {/* --- MAP TAB --- */}
+        {
+          activeTab === 'MAP' && (
+            <FlightMap flights={flights} onFlightClick={setSelectedFlight} />
+          )
+        }
+
+
+      </main >
 
       {/* Modals & Overlays */}
-      <FlightDetailModal flight={selectedFlight} pilots={pilots} onClose={() => setSelectedFlight(null)} />
+      < FlightDetailModal flight={selectedFlight} pilots={pilots} onClose={() => setSelectedFlight(null)} />
 
-      {showDelayInput && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <Card className="w-full max-w-md border-orange-500">
-            <CardHeader>
-              <CardTitle className="text-orange-500">Manual Delay Override</CardTitle>
-              <CardDescription>Enter the manual delay duration in minutes.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <input
-                type="number"
-                className="w-full p-3 bg-secondary rounded border border-border text-2xl font-mono text-center"
-                value={manualDelayMinutes}
-                onChange={e => setManualDelayMinutes(e.target.value)}
-                autoFocus
-              />
-            </CardContent>
-            <CardFooter className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setShowDelayInput(false)}>Cancel</Button>
-              <Button variant="default" className="bg-orange-500 hover:bg-orange-600" onClick={confirmManualDelay}>Confirm Delay</Button>
-            </CardFooter>
-          </Card>
-        </div>
-      )}
-    </div>
+      {
+        showDelayInput && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+            <Card className="w-full max-w-md border-orange-500">
+              <CardHeader>
+                <CardTitle className="text-orange-500">Manual Delay Override</CardTitle>
+                <CardDescription>Enter the manual delay duration in minutes.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <input
+                  type="number"
+                  className="w-full p-3 bg-secondary rounded border border-border text-2xl font-mono text-center"
+                  value={manualDelayMinutes}
+                  onChange={e => setManualDelayMinutes(e.target.value)}
+                  autoFocus
+                />
+              </CardContent>
+              <CardFooter className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => setShowDelayInput(false)}>Cancel</Button>
+                <Button variant="default" className="bg-orange-500 hover:bg-orange-600" onClick={confirmManualDelay}>Confirm Delay</Button>
+              </CardFooter>
+            </Card>
+          </div>
+        )
+      }
+    </div >
   );
 }
 
