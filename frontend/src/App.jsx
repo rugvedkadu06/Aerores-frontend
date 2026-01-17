@@ -15,7 +15,9 @@ import {
   Zap,
   Leaf,
   Info,
-  Activity
+  Activity,
+  Mic,
+  MicOff
 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -30,7 +32,7 @@ import PassengerBridge from './views/PassengerBridge';
 import CrewManagement from './views/CrewManagement';
 import AnalyticsDashboard from './views/AnalyticsDashboard';
 
-const API_URL = 'aerores-frontend.vercel.app';
+const API_URL = 'http://localhost:8000';
 
 // --- HELPER COMPONENTS ---
 
@@ -77,7 +79,68 @@ const UnifiedDashboard = () => {
   // Manual Delay
   const [showDelayInput, setShowDelayInput] = useState(false);
   const [manualDelayMinutes, setManualDelayMinutes] = useState(60);
+
   const [pendingOption, setPendingOption] = useState(null);
+
+  // Voice State
+  const [isListening, setIsListening] = useState(false);
+  const [voiceFilter, setVoiceFilter] = useState(null); // 'DELAYED', 'CRITICAL', 'ALL' or null
+
+  const recognitionRef = React.useRef(null);
+
+  useEffect(() => {
+    if (!('webkitSpeechRecognition' in window)) return;
+
+    const recognition = new window.webkitSpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => setIsListening(true);
+
+    recognition.onend = () => {
+      // Auto-restart if it was supposed to be running (Always On mode)
+      if (recognitionRef.current && isListening) {
+        try { recognition.start(); } catch (e) { setIsListening(false); }
+      } else {
+        setIsListening(false);
+      }
+    };
+
+    recognition.onresult = async (event) => {
+      const latestIndex = event.results.length - 1;
+      const transcript = event.results[latestIndex][0].transcript.trim();
+      console.log("Voice Command:", transcript);
+
+      try {
+        const res = await axios.post(`${API_URL}/command`, { command: transcript });
+        const { action, payload, message } = res.data;
+
+        if (action === 'FILTER') setVoiceFilter(payload);
+        else if (action === 'RESET') setVoiceFilter(null);
+      } catch (err) { console.error("Command failed", err); }
+    };
+
+    recognitionRef.current = recognition;
+
+    return () => {
+      if (recognitionRef.current) recognitionRef.current.abort();
+    }
+  }, []); // Init once
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) return;
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false); // Manually stopped
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (e) { console.error(e); }
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -161,12 +224,24 @@ const UnifiedDashboard = () => {
     });
   };
 
+
+
   const handleReset = async () => {
     await axios.get(`${API_URL}/seed`);
     fetchData();
   };
 
   const isCrisis = status !== 'VALID';
+  // Apply logic: if voiceFilter is set, use it.
+  const displayedFlights = flights.filter(f => {
+    if (voiceFilter === 'DELAYED') return f.status === 'DELAYED' || f.status === 'CRITICAL';
+    if (voiceFilter === 'CRITICAL') return f.status === 'CRITICAL';
+    if (voiceFilter === 'CANCELLED') return f.status === 'CANCELLED';
+    if (voiceFilter === 'SWAPPED') return f.status === 'SWAPPED';
+    if (voiceFilter === 'ON_TIME') return f.status === 'ON_TIME';
+    return true;
+  });
+
   const activeDisruptions = flights.filter(f => f.status === 'DELAYED' || f.status === 'CANCELLED').length + (isCrisis ? 1 : 0);
 
   return (
@@ -212,6 +287,17 @@ const UnifiedDashboard = () => {
                 onClick={() => setMode('MANUAL')}
               >MANUAL</Button>
             </div>
+
+            <Button
+              variant={isListening ? "destructive" : "outline"}
+              size="icon"
+              className={`transition-all ${isListening ? 'animate-pulse' : ''}`}
+              onClick={toggleListening}
+              title={isListening ? "Stop Voice Mode" : "Start Always-On Voice"}
+            >
+              {isListening ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4 text-muted-foreground" />}
+            </Button>
+
             <Button variant="outline" size="icon" onClick={fetchData} title="Refresh Data">
               <RotateCw className="w-4 h-4" />
             </Button>
@@ -265,7 +351,15 @@ const UnifiedDashboard = () => {
                   </CardHeader>
                   <CardContent className="flex-1 overflow-hidden p-0">
                     <div className="h-full overflow-y-auto pr-1">
-                      <FlightTable flights={flights} onRowClick={setSelectedFlight} simpleView={false} />
+                      <div className="h-full overflow-y-auto pr-1">
+                        {voiceFilter && (
+                          <div className="p-2 bg-primary/10 text-xs font-bold text-primary flex justify-between items-center">
+                            <span>🎤 Filter: {voiceFilter}</span>
+                            <button onClick={() => setVoiceFilter(null)} className="hover:underline">Clear</button>
+                          </div>
+                        )}
+                        <FlightTable flights={displayedFlights} onRowClick={setSelectedFlight} simpleView={false} />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -353,6 +447,13 @@ const UnifiedDashboard = () => {
                                 <div>
                                   <div className="font-semibold text-sm">{opt.title}</div>
                                   <div className="text-xs text-muted-foreground">{opt.description.substring(0, 60)}...</div>
+                                  {opt.co2_impact && (
+                                    <div className={`mt-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${opt.co2_impact.score === 'HIGH' ? 'bg-red-100 text-red-700' :
+                                      opt.co2_impact.score === 'MEDIUM' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
+                                      }`}>
+                                      <Leaf className="w-3 h-3 mr-1" /> {opt.co2_impact.value}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                               <div className="flex flex-col items-end">

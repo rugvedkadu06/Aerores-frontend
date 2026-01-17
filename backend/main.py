@@ -1,5 +1,6 @@
 
 from fastapi import FastAPI, HTTPException, Body
+from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 import datetime
@@ -13,6 +14,9 @@ from email.mime.multipart import MIMEMultipart
 
 from database import db
 from models import Pilot, Flight, Disruption, CostModel, SimulationRequest, HealRequest, CrewRestRequest, CrewCostRequest
+
+class CommandRequest(BaseModel):
+    command: str
 from passenger_api import router as passenger_router
 from analytics_api import router as analytics_router
 
@@ -572,6 +576,25 @@ async def heal(req: HealRequest):
     # --- CO-PILOT SELECTION LOGIC ---
     best_option = None
     
+    # Calculate CO2 for ALL options (Green Skies Feature)
+    for opt in options:
+        impact = 0
+        if opt['action_type'] == 'CANCEL':
+            impact = 120 # Fixed cost for ground transport/waste
+        elif opt['action_type'] == 'DELAY_APPLY':
+             mins = opt['payload'].get('minutes', 60)
+             impact = mins * 10 # 10kg per minute of holding/taxiing
+        elif opt['action_type'] == 'SWAP_FLIGHT':
+             impact = 50 # Logistics overhead
+        elif opt['action_type'] == 'ASSIGN': 
+             impact = 80 # Crew transport
+             
+        opt['co2_impact'] = {
+            "value": f"+{impact}kg CO2",
+            "score": "HIGH" if impact > 200 else ("MEDIUM" if impact > 100 else "LOW"),
+            "color": "red" if impact > 200 else ("orange" if impact > 100 else "green")
+        }
+
     # Priority Heuristic:
     # 1. Swap Flight (Optimal for Tech/Weather)
     # 2. Assign Reserve (Optimal for Sickness)
@@ -592,7 +615,7 @@ async def heal(req: HealRequest):
     # Instead of DB updates, we return the decision packet
     
     if best_option:
-        # Sustainability Calc
+        # Sustainability Calc (Legacy field preserved for compatibility, but options now have details)
         delay_saved = 0
         if best_option['action_type'] == 'CANCEL':
             delay_saved = 120 # Assume 2 hours wasted ground time saved
@@ -623,6 +646,36 @@ async def heal(req: HealRequest):
         }
 
     return {"status": "NO_OPTIONS_FOUND"}
+
+
+@app.post("/command")
+async def process_command(req: CommandRequest):
+    """
+    VOICE OPS: Simple NLU to map text -> Action
+    """
+    cmd = req.command.lower()
+    
+    # Intent 1: Filtering
+    if "show" in cmd or "list" in cmd:
+        if "delayed" in cmd:
+            return {"action": "FILTER", "payload": "DELAYED", "message": "Showing all delayed flights."}
+        if "critical" in cmd:
+            return {"action": "FILTER", "payload": "CRITICAL", "message": "Showing critical alerts."}
+        if "cancelled" in cmd:
+            return {"action": "FILTER", "payload": "CANCELLED", "message": "Showing cancelled flights."}
+        if "swapped" in cmd:
+            return {"action": "FILTER", "payload": "SWAPPED", "message": "Showing swapped flights."}
+        if "on time" in cmd or "ontime" in cmd:
+            return {"action": "FILTER", "payload": "ON_TIME", "message": "Showing on-time flights."}
+        if "all" in cmd:
+            return {"action": "RESET", "payload": None, "message": "Showing all flights."}
+            
+    # Intent 2: Reset
+    if "reset" in cmd or "clear" in cmd:
+         return {"action": "RESET", "payload": None, "message": "Dashboard reset."}
+
+    return {"action": "UNKNOWN", "message": "I didn't quite catch that."}
+
 
 @app.post("/resolve")
 async def resolve(req: dict = Body(...)):
