@@ -14,9 +14,11 @@ from email.mime.multipart import MIMEMultipart
 from database import db
 from models import Pilot, Flight, Disruption, CostModel, SimulationRequest, HealRequest, CrewRestRequest, CrewCostRequest
 from passenger_api import router as passenger_router
+from analytics_api import router as analytics_router
 
 app = FastAPI()
 app.include_router(passenger_router)
+app.include_router(analytics_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -409,8 +411,11 @@ async def heal(req: HealRequest):
     # --- Option Generation Logic ---
     # --- Option Generation Logic (Refined for SkyCoPilot) ---
     
-    # 1. Crew Sickness -> ONLY Crew Options
-    if "Sick" in reason or "FDTL" in reason:
+    # Combine reasons to ensure we don't miss Root Causes (e.g. Technical) masked by Symptoms (e.g. FDTL)
+    combined_reason = f"{flight.get('predictedFailureReason', '')} {flight.get('delayReason', '')}"
+    
+    # 1. Crew Sickness -> ONLY Crew Options (Specific Personal Safety)
+    if "Sick" in combined_reason:
         replacement = await db.pilots.find_one({
             "status": "AVAILABLE",
             "currentDutyMinutes": {"$lt": 300},
@@ -426,9 +431,81 @@ async def heal(req: HealRequest):
                 "payload": {"flight_id": flight["_id"], "pilot_id": replacement["_id"]},
                 "reasoning": "Standard Protocol: Crew Incapacitation requires immediate replacement with fresh reserve."
             })
-    
+            
     # 2. Operational/Tech/Weather -> ONLY Flight/Aircraft Options
-    elif "Fog" in reason or "Weather" in reason or "Technical" in reason or "Hydraulic" in reason or "ATC" in reason:
+    # We check this BEFORE generic FDTL because Tech/Weather is the ROOT CAUSE and Swap Flight solves FDTL too.
+    elif "Fog" in combined_reason or "Weather" in combined_reason or "Technical" in combined_reason or "Hydraulic" in combined_reason or "ATC" in combined_reason:
+        # Priority 1: Swap Flight (Replace)
+        now = datetime.datetime.now()
+        candidates = await db.flights.find({
+            "origin": flight.get("origin"),
+            "status": {"$in": ["ON_TIME", "SCHEDULED"]},
+            "_id": {"$ne": flight["_id"]},
+            "scheduledDeparture": {"$gte": now, "$lte": now + datetime.timedelta(hours=6)}
+        }).sort("scheduledDeparture", 1).to_list(3)
+        
+        for c in candidates:
+            options.append({
+                "id": "OPT_SWAP_FLIGHT",
+                "title": f"Swap w/ Flight {c['flightNumber']}",
+                "description": f"Use aircraft from {c['flightNumber']} (Dep: {c['scheduledDeparture'].strftime('%H:%M')})",
+                "action_type": "SWAP_FLIGHT",
+                "risk_level": "LOW",
+                "payload": {"flight_id": flight["_id"], "target_flight_id": c["_id"]},
+                "reasoning": f"Optimal Solution: Unaffected aircraft/slot available from {c['flightNumber']}."
+            })
+            
+        # Fallback Options if no swap found or as alternatives
+        if "Weather" in combined_reason or "Fog" in combined_reason:
+             options.append({
+                "id": "OPT_HOLD",
+                "title": "Hold Pattern (Wait 60m)",
+                "description": "Wait for conditions to improve.",
+                "action_type": "DELAY_APPLY",
+                "risk_level": "MEDIUM",
+                "payload": {"flight_id": flight["_id"], "minutes": 60},
+                "reasoning": "Holding is safer than diverting, but impacts fuel."
+            })
+        elif "Technical" in combined_reason or "Hydraulic" in combined_reason:
+             options.append({
+                "id": "OPT_FIX",
+                "title": "Quick Repair (45m)",
+                "description": "Attempt minor repair.",
+                "action_type": "DELAY_APPLY",
+                "risk_level": "MEDIUM",
+                "payload": {"flight_id": flight["_id"], "minutes": 45},
+                "reasoning": "Repair is viable but carries risk of further delay."
+            })
+        elif "ATC" in combined_reason:
+             options.append({
+                "id": "OPT_DELAY_ATC",
+                "title": "Wait for Slot (90m)",
+                "description": "Ground hold until ATC clearance.",
+                "action_type": "DELAY_APPLY",
+                "risk_level": "LOW",
+                "payload": {"flight_id": flight["_id"], "minutes": 90},
+                "reasoning": "Compliance with ATC mandate is mandatory."
+            })
+            
+    # 3. FDTL (Crew Fatigue) -> WITHOUT Sickness or Tech
+    # This catches cases where the crew simply ran out of hours due to accumulation or minor delays
+    elif "FDTL" in combined_reason:
+        replacement = await db.pilots.find_one({
+            "status": "AVAILABLE",
+            "currentDutyMinutes": {"$lt": 300},
+            "base": flight.get("origin", "DEL")
+        })
+        if replacement:
+            options.append({
+                "id": "OPT_SWAP",
+                "title": f"Assign Reserve: {replacement['name']}",
+                "description": f"Ready at {replacement['base']}. Duty: {replacement['currentDutyMinutes']}m.",
+                "action_type": "ASSIGN",
+                "risk_level": "LOW",
+                "payload": {"flight_id": flight["_id"], "pilot_id": replacement["_id"]},
+                "reasoning": "FDTL Exceeded: Fresh crew required to operate flight legalities."
+            })
+
         # Priority 1: Swap Flight (Replace)
         now = datetime.datetime.now()
         candidates = await db.flights.find({

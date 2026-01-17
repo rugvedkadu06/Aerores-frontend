@@ -28,6 +28,7 @@ import AgentLogs from './components/AgentLogs';
 import FlightDetailModal from './components/FlightDetailModal';
 import PassengerBridge from './views/PassengerBridge';
 import CrewManagement from './views/CrewManagement';
+import AnalyticsDashboard from './views/AnalyticsDashboard';
 
 const API_URL = 'aerores-frontend.vercel.app';
 
@@ -186,6 +187,7 @@ const UnifiedDashboard = () => {
             <nav className="hidden md:flex gap-4">
               <Button variant={activeTab === 'DASHBOARD' ? "secondary" : "ghost"} size="sm" onClick={() => setActiveTab('DASHBOARD')}>DASHBOARD</Button>
               <Button variant={activeTab === 'CREW' ? "secondary" : "ghost"} size="sm" onClick={() => setActiveTab('CREW')}>CREW</Button>
+              <Button variant={activeTab === 'ANALYTICS' ? "secondary" : "ghost"} size="sm" onClick={() => setActiveTab('ANALYTICS')}>ANALYTICS</Button>
               <Button variant={activeTab === 'SIMULATION' ? "secondary" : "ghost"} size="sm" onClick={() => setActiveTab('SIMULATION')}>SIMULATION</Button>
             </nav>
           </div>
@@ -391,6 +393,7 @@ const UnifiedDashboard = () => {
         )}
 
         {/* --- OTHER TABS --- */}
+        {activeTab === 'ANALYTICS' && <AnalyticsDashboard />}
         {activeTab === 'CREW' && <CrewManagement pilots={pilots} onRefresh={fetchData} />}
 
         {activeTab === 'SIMULATION' && (

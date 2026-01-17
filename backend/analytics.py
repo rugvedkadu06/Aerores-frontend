@@ -1,113 +1,140 @@
 
 import random
 import datetime
+from collections import Counter
 
-# DEMO: Seed random to ensure consistent "Video Ready" results on every reload
-random.seed(42) 
-
-def calculate_future_fatigue(pilot):
+def calculate_future_fatigue(pilot, days=7):
     """
-    Project fatigue score for the next 7 days.
-    DEMO MODE: Highlighting specific pilots for the video.
+    Project fatigue score for the next 'days' based on current state.
+    Scale: Returns 0-100 for chart visualization.
     """
-    pilot_id = pilot.get('_id', '')
-    current_score = pilot.get('fatigue_score', 0)
+    # Normalize input (0.0 - 1.0) to (0 - 100)
+    current_raw = pilot.get('fatigue_score', 0)
+    current_score = current_raw * 100
     
     trend = []
     
-    # SCENARIO 1: The "Crisp" Pilot (Low Fatigue)
-    if current_score < 20: 
-        base_scores = [10, 12, 15, 8, 10, 25, 40]
-        
-    # SCENARIO 2: The "Overworked" Pilot (High Risk Demo)
-    elif current_score > 70:
-        # Show specific dangerous upward trend
-        base_scores = [75, 82, 88, 60, 75, 90, 95]
-        
-    # SCENARIO 3: Average Pilot
-    else:
-        base_scores = [current_score]
-        for _ in range(6):
-            change = random.choice([-15, 10, 15])
-            next_val = base_scores[-1] + change
-            base_scores.append(max(10, min(90, next_val)))
-            
-    for i, score in enumerate(base_scores):
+    # Simulation Logic
+    # specific_trend: Accumulates if working, drops if resting
+    # We simulate a "mock roster" for the future
+    
+    running_score = current_score
+    
+    for i in range(days):
         date_label = (datetime.datetime.now() + datetime.timedelta(days=i)).strftime("%a")
+        
+        # Simple heuristic:
+        # If score is high (>70), likely to get rest soon -> Drop
+        # If score is low (<30), likely to fly -> Increase
+        
+        daily_change = 0
+        
+        if running_score > 80:
+            daily_change = -30 # Mandatory Rest
+        elif running_score < 40:
+             daily_change = random.randint(10, 25) # Duty Day
+        else:
+             daily_change = random.choice([-15, 15, 20]) # Random assignment
+             
+        running_score += daily_change
+        
+        # Clamp 0-100
+        running_score = max(5, min(95, running_score))
+        
         trend.append({
             "day": date_label,
-            "score": score,
-            "risk": "HIGH" if score > 80 else ("MEDIUM" if score > 50 else "LOW")
+            "score": round(running_score, 1),
+            "risk": "HIGH" if running_score > 70 else ("MEDIUM" if running_score > 40 else "LOW")
         })
         
     return trend
 
 def estimate_disruption_cost(flights):
     """
-    Calculate estimated cost of disruptions and potential savings.
-    DEMO: Hardcoded for impressive video presentation.
+    Calculate estimated cost based on actual delays.
     """
-    # Fake specific numbers for the video
-    current_cost = 45250  # "Current Waste"
-    savings = 18900       # "Projected Savings"
+    total_delay_minutes = sum(f.get('delayMinutes', 0) for f in flights)
+    
+    # Assumptions per Industry Standards (India)
+    # COST_PER_MINUTE_DELAY = Fuel ($50) + Crew ($30) + Pax Comp ($20) ~ $100
+    cost_per_min = 100 
+    
+    current_waste = total_delay_minutes * cost_per_min
+    
+    # We estimate SkyCoPilot saves ~25% through optimization
+    projected_savings = current_waste * 0.25
+    
+    # Efficiency Score: 100 - (Delay Impact)
+    # If 0 delay -> 100.
+    efficiency = max(0, 100 - (total_delay_minutes / 100)) # Arbitrary scaling
     
     return {
-        "current_waste": current_cost,
-        "projected_savings": savings,
-        "efficiency_score": 92 # High score for demo
+        "current_waste": int(current_waste),
+        "projected_savings": int(projected_savings),
+        "efficiency_score": int(efficiency)
     }
 
-def get_disruption_predictions():
+def get_disruption_predictions(flights, pilots):
     """
-    Mock prediction of future disruptions.
-    DEMO: Ensure specific locations show high risk for the map/list.
+    Generate predictions based on actual DB patterns.
     """
-    risks = [
-        {
-            "location": "DEL", 
-            "probability": 89, 
-            "type": "Dense Fog (Visibility < 50m)", 
+    risks = []
+    
+    # 1. Analyze Airport Congestion (by Origin)
+    delayed_flights = [f for f in flights if f.get('status') in ['DELAYED', 'CRITICAL']]
+    origin_counts = Counter(f.get('origin') for f in delayed_flights)
+    
+    for airport, count in origin_counts.items():
+        if count >= 2: # Low threshold for demo since total flights is small
+            risks.append({
+                "location": airport,
+                "probability": min(95, 40 + (count * 10)),
+                "type": "Airport Congestion",
+                "impact": "HIGH" if count > 5 else "MEDIUM",
+                "root_cause": f"Accumulation of {count} delayed flights",
+                "recommendation": "Initiate Ground Stop Program",
+                "details": f"Congestion detected at {airport}."
+            })
+
+    # 2. Analyze Weather Patterns (from reasons)
+    reasons = [f.get('delayReason', '') for f in delayed_flights if f.get('delayReason')]
+    weather_keywords = ['Fog', 'Rain', 'Storm', 'Wind']
+    weather_count = sum(1 for r in reasons if any(w in r for w in weather_keywords))
+    
+    if weather_count > 2:
+        risks.append({
+            "location": "REGION-NORTH", 
+            "probability": 85,
+            "type": "Weather Front",
             "impact": "HIGH",
-            "root_cause": "Weather Front moving from North",
-            "recommendation": "Divert incoming flights to JAI",
-            "details": "Visibility expected to drop below CAT-III limits."
-        },
-        {
-            "location": "MUM", 
-            "probability": 65, 
-            "type": "Airspace Congestion", 
-            "impact": "MEDIUM",
-            "root_cause": "Peak Hour Traffic + Runway Maintenance",
-            "recommendation": "Delay departures by 20m slots",
-            "details": "Runway 09/27 operating at 50% capacity."
-        },
-        {
-            "location": "BLR", 
-            "probability": 12, 
-            "type": "Clear", 
+            "root_cause": "Multiple weather delays detected",
+            "recommendation": "Activate Winter Ops Protocol",
+            "details": "Correlated weather disruptions across network."
+        })
+
+    # 3. Analyze Crew Fatigue Pools
+    fatigued_pilots = [p for p in pilots if p.get('fatigue_score', 0) > 0.7]
+    if len(fatigued_pilots) > 3:
+        risks.append({
+            "location": "NETWORK",
+            "probability": 75,
+            "type": "Crew Depth Risk",
+            "impact": "HIGH",
+            "root_cause": f"{len(fatigued_pilots)} pilots near duty limits",
+            "recommendation": "Call in Reserve Crew 24h early",
+            "details": "High probability of crew timeout cascades."
+        })
+        
+    # 4. Default "Clear" if empty
+    if not risks:
+        risks.append({
+            "location": "SYSTEM",
+            "probability": 5,
+            "type": "Stable Operations",
             "impact": "LOW",
             "root_cause": "N/A",
-            "recommendation": "N/A",
-            "details": "Optimum Flight Conditions."
-        },
-        {
-            "location": "DXB", 
-            "probability": 45, 
-            "type": "Sandstorm Warning", 
-            "impact": "MEDIUM",
-            "root_cause": "Desert Winds > 40 knots",
-            "recommendation": "Fuel up for potential holding pattern",
-            "details": "Gusts affecting approach path."
-        },
-        {
-            "location": "LHR", 
-            "probability": 78, 
-            "type": "ATC Staff Shortage", 
-            "impact": "HIGH",
-            "root_cause": "Industrial Action Notification",
-            "recommendation": "Reduce daily slots by 15%",
-            "details": "ATC throughput reduced to 30 movements/hr."
-        }
-    ]
+            "recommendation": "Continue Standard Monitoring",
+            "details": "No major risks detected in current telemetry."
+        })
             
     return sorted(risks, key=lambda x: x['probability'], reverse=True)
